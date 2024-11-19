@@ -138,7 +138,24 @@ def rotateGripper(robot, deg):
     robot.wait_for_motion_stop()
     print("rotateGripper completed")
 
-def captureImgAndPose()
+def captureImgAndPose(robot):
+    moveGripperXYZ(robot, 0.13, -0.17, -0.38) # move to the top left corner and minimum z
+    x_max = 0.20
+    y_max = 0.34
+    z_max = 0.12
+
+    x_step = 0.02
+    y_step = 0.02
+    z_step = 0.04
+
+    x_lin = np.linspace(0, x_max, 10, endpoint=True)
+    y_lin = np.linspace(0, y_max, 17, endpoint=True)
+    z_lin = np.linspace(0, z_max, 3, endpoint=True)
+
+    for z in range(3):
+        for x in range(10):
+            for y in range(17):
+                
 
 
 def saveQ(robot, i):
