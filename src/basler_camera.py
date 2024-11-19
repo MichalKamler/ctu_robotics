@@ -4,7 +4,7 @@
 __author__ = "Pavel Krsek"
 __maintainer__ = "Pavel Krsek"
 __email__ = "pavel.krsek@cvut.cz"
-__copyright__ = "Copyright \xa9 2023 RMP, CIIRC CVUT in Prague\nAll Rights Reserved."
+__copyright__ = "Copyright © 2023 RMP, CIIRC CVUT in Prague\nAll Rights Reserved."
 __license__ = "Use for lectures B3B33ROB1"
 __version__ = "1.0"
 __date__ = "2024/10/30"
@@ -13,12 +13,8 @@ __credits__ = []
 __all__ = []
 
 import numpy as np
-from nptyping import NDArray, Shape
-# dataclass for camera class definition
 from dataclasses import dataclass
-# camera interface libraries
 from pypylon import pylon
-# import type Any
 from typing import Any
 
 
@@ -29,7 +25,7 @@ from typing import Any
 # ==========================================================================
 @dataclass(init=False)
 class BaslerCamera:
-    """Class represents the basledr camera  interface"""
+    """Class represents the basledr camera interface"""
 
     #: Camera IP address as string
     ip_address: str
@@ -74,13 +70,11 @@ class BaslerCamera:
         """
         The method returns the class parameters as a dictionary.
         This method is used for writing data into the configuration file.
-        Default implementation should be reimplemented.
 
         Returns:
             dict[str, Any]:
                 Parameters names and values in the form of a dictionary.
         """
-
         ret_dict = {}
         for key in self.config_attrs:
             if hasattr(self, key):
@@ -93,7 +87,6 @@ class BaslerCamera:
         """
         The method sets the class parameters from the dictionary.
         This method is used for reading data from the configuration file.
-        Default implementation should be reimplemented.
 
         Args:
             data (dict[str, Any]):
@@ -105,9 +98,8 @@ class BaslerCamera:
 
     def set_parameters(self):
         """
-        The method sets the camera parameters (in the camera) by values storeed
-        in the corresponding attributes of this class. The attribustes must be
-        set to desired values before setting the parameters in the camera.
+        The method sets the camera parameters (in the camera) by values stored
+        in the corresponding attributes of this class.
         """
         self.camera.Gamma.SetValue(self.gamma)
         self.camera.GainAuto.SetValue("Off")
@@ -123,25 +115,9 @@ class BaslerCamera:
         else:
             self.camera.AcquisitionFrameRateEnable.SetValue(False)
 
-    # Informations about devicer/ camera
-    # print("----")
-    # print(device.GetDeviceClass())
-    # print(device.GetModelName())
-    # print(device.GetSerialNumber())
-    # print(device.GetUserDefinedName())
-    # print(device.GetFullName())
-    # print(device.GetFriendlyName())
-
     def connect_by_ip(self, ip_addr: str = ""):
         """
-        The method conects the camera by its IP address.
-        The methods lists cameras nearby and selects
-        the camera with appropriate IP address.
-        In case of error the exeptions are raised.
-
-        Args:
-            ip_addr(str):
-                The desired IP address of the camera.
+        The method connects the camera by its IP address.
         """
         self.opened = False
         self.connected = False
@@ -152,36 +128,23 @@ class BaslerCamera:
             tl_factory = pylon.TlFactory.GetInstance()
             devices = tl_factory.EnumerateDevices()
             if len(devices) == 0:
-                error_str = "There is not detected any Basler camera."
-                raise pylon.RuntimeException(error_str)
+                raise pylon.RuntimeException("No Basler cameras detected.")
             for device in devices:
-                success = device.GetIpAddress() == self.ip_address
-                if success:
+                if device.GetIpAddress() == self.ip_address:
                     break
-            if not success:
-                error_str = (f"Camera with IP address {self.ip_address}" +
-                             " not found.")
-                raise pylon.RuntimeException(error_str)
+            else:
+                raise pylon.RuntimeException(
+                    f"Camera with IP {self.ip_address} not found."
+                )
             self.camera = pylon.InstantCamera(tl_factory.CreateDevice(device))
-            # The parameter MaxNumBuffer can be used to control the count
-            # of buffers allocated for grabbing. The default value of this
-            # parameter is 10, but 5 is enough where only last image is used.
             self.camera.MaxNumBuffer = 5
             self.connected = True
         else:
-            error_str = "IP address is nod deffined."
-            raise TypeError(error_str)
+            raise TypeError("IP address is not defined.")
 
     def connect_by_name(self, name: str = ""):
         """
-        The method conects the camera by its user defined name.
-        The methods lists cameras nearby and selects
-        the camera with appropriate name.
-        In case of error the exeptions are raised.
-
-        Args:
-            name(str):
-                The desired name of the camera.
+        The method connects the camera by its user-defined name.
         """
         self.opened = False
         self.connected = False
@@ -190,135 +153,90 @@ class BaslerCamera:
             tl_factory = pylon.TlFactory.GetInstance()
             devices = tl_factory.EnumerateDevices()
             if len(devices) == 0:
-                error_str = "There is not detected any Basler camera."
-                raise pylon.RuntimeException(error_str)
+                raise pylon.RuntimeException("No Basler cameras detected.")
             for device in devices:
-                success = device.GetUserDefinedName() == name
-                if success:
+                if device.GetUserDefinedName() == name:
                     break
-            if not success:
-                error_str = (f"Camera with IP address {self.ip_address}" +
-                             " not found.")
-                raise pylon.RuntimeException(error_str)
+            else:
+                raise pylon.RuntimeException(
+                    f"Camera with name {name} not found."
+                )
             self.camera = pylon.InstantCamera(tl_factory.CreateDevice(device))
-            # The parameter MaxNumBuffer can be used to control the count
-            # of buffers allocated for grabbing. The default value of this
-            # parameter is 10, but 5 is enough where only last image is used.
             self.camera.MaxNumBuffer = 5
             self.connected = True
         else:
-            error_str = "IDevice name is nod deffined."
-            raise TypeError(error_str)
+            raise TypeError("Device name is not defined.")
 
     def open(self):
         """
-        The method opens comunication with connected camera and
-        prepare covnverter for converting the image from camera
-        into the format accepted by OpenCV (cv2).
+        The method opens communication with the connected camera.
         """
         if self.connected:
             self.camera.Open()
             self.opened = True
         if self.opened:
-            # Converting to opencv bgr format
             self.converter = pylon.ImageFormatConverter()
-            self.converter.OutputPixelFormat = \
-                pylon.PixelType_BGR8packed
-            self.converter.OutputBitAlignment = \
-                pylon.OutputBitAlignment_MsbAligned
+            self.converter.OutputPixelFormat = pylon.PixelType_BGR8packed
+            self.converter.OutputBitAlignment = pylon.OutputBitAlignment_MsbAligned
 
     def start(self):
         """
-        The method starts image capturing when the camera is connected
-        and the comunication is open.
+        The method starts image capturing.
         """
-        if self.opened:
-            if not self.camera.IsGrabbing():
-                # Start grabbing images
-                self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+        if self.opened and not self.camera.IsGrabbing():
+            self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
-    def get_image(self, time_out: int = 0) -> NDArray[Shape["*, *, 3"], Any]:
+    def get_image(self, time_out: int = 0) -> np.ndarray:
         """
-        The method obtain one image from the camera. The method waits for
-        the image until the image is obtained or timeout is reached.
+        The method obtains one image from the camera.
 
         Args:
-            time_out(int):
-                Timeout for the image obtaining [ms]. When the value 0
-                is used the timeout defined by corresponding attribute
-                of camera object is applied.
+            time_out (int): Timeout for image obtaining [ms].
 
         Returns:
-            NDArray[Shape["row, col, 3"], Any]:
-                The obtained image is returned. When the image has size 0,
-                means that the image was not obtained within the timeout
-                or other error ocured.
+            np.ndarray: The obtained image.
         """
-        image = np.array([])  # camera interface libraries
+        image = np.array([])
         if self.camera.IsGrabbing():
-            # Wait for an image and then retrieve it.
-            # A minimal timeout of 1000 ms is recommended.
-            # We must take into accont that first image takes longer time.
-            if time_out <= 0:
-                time_out = int(self.grab_timeout)
+            time_out = time_out or self.grab_timeout
             res = self.camera.RetrieveResult(
-                time_out,
-                pylon.TimeoutHandling_ThrowException)
-            # Image grabbed successfully?
-            # Information about error: {res.ErrorCode}, {res.ErrorDescription}
+                time_out, pylon.TimeoutHandling_ThrowException)
             if res.GrabSucceeded():
-                # Access the image data.
-                image = self.converter.Convert(res)
-                image = image.GetArray()
+                image = self.converter.Convert(res).GetArray()
             res.Release()
         return image
 
-    def grab_image(self, time_out: int = 0) -> NDArray[Shape[" *, *, 3"], Any]:
+    def grab_image(self, time_out: int = 0) -> np.ndarray:
         """
-        The method is enccapsulation of the method get_image. This method
-        chceck if the grabing of images is started. If not, the grabbing
-        is started and than the image is obtained. State of grabbing is
-        set back to the state before calling the method.
+        A wrapper for get_image that ensures grabbing is started.
 
         Args:
-            time_out(int):
-                Timeout for the image obtaining [ms]. When the value 0
-                is used the timeout defined by corresponding attribute
-                of camera object is applied.
+            time_out (int): Timeout for image obtaining [ms].
 
         Returns:
-            NDArray[Shape["row, col, 3"], Any]:
-                The obtained image is returned. When the image has size 0,
-                means that the image was not obtained within the timeout
-                or other error ocured.
+            np.ndarray: The obtained image.
         """
-        stop_grab: bool = False
-        if not self.camera.IsGrabbing():
-            # Start grabbing images
+        stop_grab = not self.camera.IsGrabbing()
+        if stop_grab:
             self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
-            stop_grab = True
         image = self.get_image(time_out)
         if stop_grab:
-            # Stop grabbing images
             self.camera.StopGrabbing()
         return image
 
     def stop(self):
         """
-        The method stops capturing of images.
+        The method stops image capturing.
         """
-        if self.opened:
-            if self.camera.IsGrabbing():
-                # Stop grabbing images
-                self.camera.StopGrabbing()
+        if self.opened and self.camera.IsGrabbing():
+            self.camera.StopGrabbing()
 
     def close(self):
         """
-        The method close communication with the camera.
+        The method closes communication with the camera.
         """
         if self.opened:
             if self.camera.IsGrabbing():
-                # Stop grabbing images
                 self.camera.StopGrabbing()
             self.opened = False
             self.camera.Close()

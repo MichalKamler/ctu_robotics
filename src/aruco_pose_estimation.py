@@ -3,6 +3,7 @@ import cv2
 import numpy as np 
 import os 
 import matplotlib.pyplot as plt 
+from utils import loadParams
 
 class ArucoType(Enum):
     DICT_4X4_50 = cv2.aruco.DICT_4X4_50
@@ -50,7 +51,7 @@ class ArucoMarkers():
     def __init__(self): 
         self.dir = os.path.dirname(os.path.abspath(__file__))
 
-    def arucoMarkerPoseEstimation(self, aruco_type, camera_matrix, dist_coeffs): 
+    def arucoMarkerPoseEstimation(self, aruco_type, camera_matrix, dist_coeffs): #for realtime aplication
         print('Detecting ArUco Marker...')
 
         aruco_side_size = 6.0
@@ -117,24 +118,7 @@ class ArucoMarkers():
             if cv2.waitKey(1) & 0xFF == ord('q'): 
                 break
 
-def loadParams():
-    curFolder = os.path.dirname(os.path.abspath(__file__))
-    # Load Calibration Parameters
-    paramPath = os.path.join(curFolder, 'calibration.npz')
 
-    # Load the .npz file
-    params = np.load(paramPath)
-
-    # Extract the parameters
-    repError = params['repError']
-    camMatrix = params['camMatrix']
-    distCoeff = params['distCoeff']
-    rvecs = params['rvecs']
-    tvecs = params['tvecs']
-
-    # Now you can use these parameters for camera calibration or further processing
-    print(f"Calibration parameters loaded from {paramPath}")
-    return camMatrix, distCoeff
 
 def runArucoMarkerPoseEstimation(aruco_type): 
     aruco_marker = ArucoMarkers() 
