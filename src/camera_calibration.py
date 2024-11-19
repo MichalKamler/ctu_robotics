@@ -2,8 +2,8 @@ import cv2 as cv
 import numpy as np
 import glob
 import os
-import matplotlib.pyplot as plt
-from basler_camera import BaslerCamera
+# import matplotlib.pyplot as plt
+# from basler_camera import BaslerCamera
 
 distortionCameraMatrix = np.array([[800, 0, 320],
                          [0, 800, 240],
@@ -148,11 +148,11 @@ def calibrate(showPics=True):
     # Read Image
     root = os.getcwd()
     calibrationDir = os.path.join(root, 'demoImages//calibration')
-    imgPathList = glob.glob(os.path.join(calibrationDir, '*.jpg'))
+    imgPathList = glob.glob(os.path.join(calibrationDir, '*.png'))
 
     # Initialize 
-    nRows = 8
-    nCols = 6
+    nRows = 4
+    nCols = 7
     termCriteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     worldPtsCur = np.zeros((nRows * nCols, 3), np.float32)
     worldPtsCur[:,:2] = np.mgrid[0:nRows, 0:nCols].T.reshape(-1,2)
@@ -206,15 +206,24 @@ def loadParams():
     return camMatrix, distCoeff
 
 if __name__ == "__main__":
-    ciirc = False
-    capture_and_calibrate_distorted_img = False
+    ciirc = True
+    capture_and_calibrate_distorted_img = True
 
     if ciirc:
-        camera: BaslerCamera = BaslerCamera()
-        camera.connect_by_name("camera-crs97")
-        camera.set_parameters()
-        camera.start()
-        displayFeed(camera, )
+        # camera: BaslerCamera = BaslerCamera()
+        # camera.connect_by_name("camera-crs97")
+        # camera.connect_by_ip("192.168.137.106")
+        # camera.set_parameters()
+        # camera.start()
+        if capture_and_calibrate_distorted_img:
+            # displayFeed(camera)
+            camMatrix, distCoeff = calibrate(True)
+            # displayFeed(camera, camMatrix, distCoeff)
+
+        else:
+            camMatrix, distCoeff = loadParams()
+            # displayFeed(camera, camMatrix, distCoeff)
+        # camera.close()
 
     else:
         cap = cv.VideoCapture(0)
