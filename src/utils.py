@@ -1,6 +1,14 @@
 import os
 import numpy as np
+from enum import Enum
 import cv2 as cv
+
+class ArucoType(Enum):
+    DICT_4X4_50 = cv.aruco.DICT_4X4_50
+    DICT_4X4_100 = cv.aruco.DICT_4X4_100
+    DICT_4X4_250 = cv.aruco.DICT_4X4_250
+    DICT_4X4_1000 = cv.aruco.DICT_4X4_1000
+
 
 def loadParams(name):
     curFolder = os.path.dirname(os.path.abspath(__file__))
@@ -55,7 +63,8 @@ def arucoMarkerPoseEstimation(img, aruco_type, camera_matrix, dist_coeffs, aruco
 
     img_gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY)
     corners, ids, _ = detector.detectMarkers(img_gray)
-
+    rvecs_transformed = None
+    vector_new = None
     if ids is not None: 
         img = cv.aruco.drawDetectedMarkers(img,corners,ids)
 
@@ -95,5 +104,6 @@ def arucoMarkerPoseEstimation(img, aruco_type, camera_matrix, dist_coeffs, aruco
             
             # cv2.drawFrameAxes(frame, camera_matrix, dist_coeffs, rvecs_transformed, tvecs, 1) 
             cv.drawFrameAxes(img, camera_matrix, dist_coeffs, rvecs_transformed, vector_new, 1)
+
 
     return img, rvecs_transformed, vector_new

@@ -1,3 +1,5 @@
 /env
 /src/demoImages
 /calib_img
+/src/aruco_calib
+/src/__pycache__
