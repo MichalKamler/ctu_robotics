@@ -33,26 +33,29 @@ for i in range(80):
     #     cv.waitKey(0)  
     #     cv.destroyAllWindows()
 
-    img_aruco, rvec, tvec = arucoMarkerPoseEstimation(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 6.0, [16, 3.0, 0])
+    img_aruco, rvec, tvec = arucoMarkerPoseEstimation(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 0.06, [0.16, 0.03, 0.0])
 
-    # if img_aruco is None:
-    #     print("Error: Could not load image.")
-    # else:
-    #     cv.imshow("Image Window", img_aruco)
-    #     cv.waitKey(0)  
-    #     cv.destroyAllWindows()
+    print(rvec, tvec)
 
-    if rvec is None or tvec is None:
-        continue
+    if img_aruco is None:
+        print("Error: Could not load image.")
+    else:
+        cv.imshow("Image Window", img_aruco)
+        cv.waitKey(0)  
+        cv.destroyAllWindows()
+    break
 
-    img_filename = os.path.join(img_dir, f"img{i}_1.png")
-    cv.imwrite(img_filename, img_aruco)
+    # if rvec is None or tvec is None:
+    #     continue
 
-    img_data_filename = os.path.join(img_data_dir, f"data{i}.txt")
+    # img_filename = os.path.join(img_dir, f"img{i}_1.png")
+    # cv.imwrite(img_filename, img_aruco)
 
-    with open(img_data_filename, "w") as file:
-        file.write("# rvecs: \n")
-        np.savetxt(file, rvec, fmt='%s')
+    # img_data_filename = os.path.join(img_data_dir, f"data{i}.txt")
 
-        file.write("# tvecs: \n")
-        np.savetxt(file, tvec, fmt='%s')
+    # with open(img_data_filename, "w") as file:
+    #     file.write("# rvecs: \n")
+    #     np.savetxt(file, rvec, fmt='%s')
+
+    #     file.write("# tvecs: \n")
+    #     np.savetxt(file, tvec, fmt='%s')

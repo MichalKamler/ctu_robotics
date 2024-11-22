@@ -54,10 +54,10 @@ def arucoMarkerPoseEstimation(img, aruco_type, camera_matrix, dist_coeffs, aruco
     aruco_params = cv.aruco.DetectorParameters()
     detector = cv.aruco.ArucoDetector(aruco_dict,aruco_params)
 
-    world_points = np.array([[0.,0.,0.], # top left
-                                [aruco_side_size,0.,0.], # top right
-                                [aruco_side_size,aruco_side_size,0.], # bottom right
-                                [0.,aruco_side_size,0.]  # bottom left
+    world_points = aruco_side_size * np.array([[0.,0.,0.], # top left
+                                [1.,0.,0.], # top right
+                                [1.,1.,0.], # bottom right
+                                [0.,1.,0.]  # bottom left
     ])
 
 
@@ -70,8 +70,8 @@ def arucoMarkerPoseEstimation(img, aruco_type, camera_matrix, dist_coeffs, aruco
 
         for corner in corners: 
 
-            center_x = int(corner[0][:, 0].mean())
-            center_y = int(corner[0][:, 1].mean())
+            # center_x = int(corner[0][:, 0].mean())
+            # center_y = int(corner[0][:, 1].mean())
 
             success,rvecs,tvecs = cv.solvePnP(world_points,corner,camera_matrix,dist_coeffs)
             if not success:
@@ -97,7 +97,7 @@ def arucoMarkerPoseEstimation(img, aruco_type, camera_matrix, dist_coeffs, aruco
             transformed_rotation_matrix = rotation_matrix @ flip_matrix
             euler_angles = cv.decomposeProjectionMatrix(np.hstack((transformed_rotation_matrix, tvecs)))[6]
             transformed_rotation_matrix = transformed_rotation_matrix @ rotation_y
-            tilt_info = f"Center: ({center_x}, {center_y}), Tilt (Roll, Pitch, Yaw): {euler_angles[0][0]:.2f}, {euler_angles[1][0]:.2f}, {euler_angles[2][0]:.2f}"
+            # tilt_info = f"Center: ({center_x}, {center_y}), Tilt (Roll, Pitch, Yaw): {euler_angles[0][0]:.2f}, {euler_angles[1][0]:.2f}, {euler_angles[2][0]:.2f}"
             # print(tilt_info)
             rvecs_transformed, _ = cv.Rodrigues(transformed_rotation_matrix)
 
@@ -110,7 +110,7 @@ def arucoMarkerPoseEstimation(img, aruco_type, camera_matrix, dist_coeffs, aruco
 
 
             # print(tvecs)
-            cv.putText(img, tilt_info, (10, 30), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv.LINE_AA)
+            # cv.putText(img, tilt_info, (10, 30), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv.LINE_AA)
             
             # cv2.drawFrameAxes(frame, camera_matrix, dist_coeffs, rvecs_transformed, tvecs, 1) 
             cv.drawFrameAxes(img, camera_matrix, dist_coeffs, rvecs_transformed, vector_new, 1)
@@ -125,7 +125,7 @@ def arucoMarkersFinder(img, aruco_type, camera_matrix, dist_coeffs, aruco_side_s
     aruco_params = cv.aruco.DetectorParameters()
     detector = cv.aruco.ArucoDetector(aruco_dict,aruco_params)
 
-    world_points = np.array([[0.,0.,0.], # top left
+    world_points = aruco_side_size * np.array([[0.,0.,0.], # top left
                                 [aruco_side_size,0.,0.], # top right
                                 [aruco_side_size,aruco_side_size,0.], # bottom right
                                 [0.,aruco_side_size,0.]  # bottom left

@@ -61,9 +61,9 @@ class ArucoMarkers():
         detector = cv2.aruco.ArucoDetector(aruco_dict,aruco_params)
 
         world_points = np.array([[0.,0.,0.], # top left
-                                 [aruco_side_size,0.,0.], # top right
-                                 [aruco_side_size,aruco_side_size,0.], # bottom right
-                                 [0.,aruco_side_size,0.]  # bottom left
+                                 [1.,0.,0.], # top right
+                                 [1.,1.,0.], # bottom right
+                                 [0.,1.,0.]  # bottom left
         ])
         while True: 
             ret, frame = cap.read() 

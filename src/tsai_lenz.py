@@ -141,14 +141,19 @@ if __name__=="__main__":
     A_filtered = [value for idx, value in enumerate(A_list) if idx not in idx_banned]
     B_filtered = [value for idx, value in enumerate(B_list) if idx not in idx_banned]
 
-    R_gripper2base = [A[:3,:3] for A in A_filtered]
-    t_gripper2base = [A[:3, 3] for A in A_filtered]
-    R_target2cam = [B[:3,:3] for B in B_filtered]
-    t_target2cam = [B[:3, 3] for B in B_filtered]
+    R_base2gripper = [A[:3,:3] for A in A_filtered]
+    t_base2gripper = [A[:3, 3] for A in A_filtered]
+    R_cam2gripper= [B[:3,:3] for B in B_filtered]
+    t_cam2gripper = [B[:3, 3] for B in B_filtered]
 
-    R_cam2gripper, t_cam2gripper = cv.calibrateHandEye(R_gripper2base, t_gripper2base, R_target2cam, t_target2cam)
-    print(R_cam2gripper, t_cam2gripper)
+    R_gripper2base = [R.T for R in R_base2gripper]
+    t_gripper2base = [-R.T @ t for R, t in zip(R_base2gripper, t_base2gripper)]
+    R_target2cam = R_cam2gripper
+    t_target2cam = t_cam2gripper
+
+    R_cam2base, t_cam2base = cv.calibrateHandEye(R_gripper2base, t_gripper2base, R_target2cam, t_target2cam, method=cv.CALIB_HAND_EYE_TSAI)
+    print(R_cam2base, t_cam2base)
     # Save Calibration Parameters
     curFolder = os.path.dirname(os.path.abspath(__file__))
-    paramPath = os.path.join(curFolder, 'R_t_cam2gripper.npz')
-    np.savez(paramPath, R=R_cam2gripper, t=t_cam2gripper)
+    paramPath = os.path.join(curFolder, 'R_t_cam2base.npz')
+    np.savez(paramPath, R=R_cam2base, t=t_cam2base)
