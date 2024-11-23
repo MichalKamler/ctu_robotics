@@ -19,8 +19,6 @@ class ArucoType(Enum):
 camMatrix, distCoeff = loadParams('calibration_ciirc.npz')
 # print(camMatrix, distCoeff)
 
-exit()
-
 root = os.getcwd()
 img_dir = os.path.join(root, 'aruco_calib', 'imgs')
 img_data_dir = os.path.join(root, 'aruco_calib', 'img_data')

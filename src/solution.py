@@ -19,7 +19,7 @@ camMatrix, distCoeff = loadParams('calibration_ciirc.npz')
 
 
 def locateAllArucoMarkers(img):
-    img, rvec, tvec = arucoMarkersFinder(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 4.0)
+    img, rvec, tvec = arucoMarkersFinder(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 0.04)
 
     if img is None:
         print("Error: Could not load image.")
