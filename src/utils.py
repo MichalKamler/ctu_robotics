@@ -118,7 +118,6 @@ def arucoMarkerPoseEstimation(img, aruco_type, camera_matrix, dist_coeffs, aruco
 
     return img, rvecs_transformed, vector_new
 
-
 def arucoMarkersFinder(img, aruco_type, camera_matrix, dist_coeffs, aruco_side_size): 
 
     aruco_dict = cv.aruco.getPredefinedDictionary(aruco_type.value) 
@@ -139,9 +138,6 @@ def arucoMarkersFinder(img, aruco_type, camera_matrix, dist_coeffs, aruco_side_s
         img = cv.aruco.drawDetectedMarkers(img,corners,ids)
 
         for corner in corners: 
-
-            center_x = int(corner[0][:, 0].mean())
-            center_y = int(corner[0][:, 1].mean())
 
             success,rvecs,tvecs = cv.solvePnP(world_points,corner,camera_matrix,dist_coeffs)
             if not success:
@@ -167,7 +163,7 @@ def arucoMarkersFinder(img, aruco_type, camera_matrix, dist_coeffs, aruco_side_s
             transformed_rotation_matrix = rotation_matrix @ flip_matrix
             euler_angles = cv.decomposeProjectionMatrix(np.hstack((transformed_rotation_matrix, tvecs)))[6]
             transformed_rotation_matrix = transformed_rotation_matrix @ rotation_y
-            tilt_info = f"Center: ({center_x}, {center_y}), Tilt (Roll, Pitch, Yaw): {euler_angles[0][0]:.2f}, {euler_angles[1][0]:.2f}, {euler_angles[2][0]:.2f}"
+            # tilt_info = f"Center: ({center_x}, {center_y}), Tilt (Roll, Pitch, Yaw): {euler_angles[0][0]:.2f}, {euler_angles[1][0]:.2f}, {euler_angles[2][0]:.2f}"
             rvecs_transformed, _ = cv.Rodrigues(transformed_rotation_matrix)
 
             R = rotationToMatrix(np.deg2rad(euler_angles[0][0]), np.deg2rad(euler_angles[1][0]), np.deg2rad(euler_angles[2][0]))
@@ -177,6 +173,8 @@ def arucoMarkersFinder(img, aruco_type, camera_matrix, dist_coeffs, aruco_side_s
             vector_local += np.array([[aruco_side_size/2], [aruco_side_size/2], [0.0]])
             vector_new = R @ vector_local
             cv.drawFrameAxes(img, camera_matrix, dist_coeffs, rvecs_transformed, vector_new, 1)
+
+            print(ids, rvecs, vector_new)
 
 
     return img, rvecs_transformed, vector_new

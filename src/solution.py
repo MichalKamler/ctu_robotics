@@ -18,16 +18,24 @@ class ArucoType(Enum):
 camMatrix, distCoeff = loadParams('calibration_ciirc.npz')
 
 
-
-
 def locateAllArucoMarkers(img):
-    arucoMarkersFinder(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 4.0)
+    img, rvec, tvec = arucoMarkersFinder(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 4.0)
+
+    if img is None:
+        print("Error: Could not load image.")
+    else:
+        cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
+        cv.resizeWindow("Image Window", 600, 400)
+        cv.imshow("Image Window", img)
+        cv.waitKey(0)  
+        cv.destroyAllWindows()
+    
 
 
 
 if __name__=="__main__":
     root = os.getcwd()
     img_dir = os.path.join(root, 'imgs')
-    img_filename = os.path.join(img_dir, f"img{i}_0.png")
+    img_filename = os.path.join(img_dir, f"img0.png")
     img = cv.imread(img_filename)
     locateAllArucoMarkers(img)
