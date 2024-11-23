@@ -17,48 +17,7 @@ class ArucoType(Enum):
     DICT_4X4_1000 = cv.aruco.DICT_4X4_1000
 
 
-camMatrix, distCoeff = loadParams('calibration_ciirc.npz')
-
-
-# def rotationMatrixToEulerAngles(R):
-#     """
-#     Convert a rotation matrix R to Euler angles (roll, pitch, yaw).
-#     The rotation matrix is assumed to be a 3x3 matrix.
-#     """
-#     # Pitch (theta) around Y-axis
-#     pitch = np.arctan2(-R[2, 0], np.sqrt(R[0, 0]**2 + R[1, 0]**2))
-    
-#     # Roll (phi) around X-axis
-#     roll = np.arctan2(R[2, 1], R[2, 2])
-    
-#     # Yaw (psi) around Z-axis
-#     yaw = np.arctan2(R[1, 0], R[0, 0])
-
-#     # Convert radians to degrees if needed
-#     roll_deg = np.degrees(roll)
-#     pitch_deg = np.degrees(pitch)
-#     yaw_deg = np.degrees(yaw)
-
-#     return roll_deg, pitch_deg, yaw_deg
-
-# def rotationToMatrix(roll, pitch, yaw):
-#     # Roll - around x-axis
-#     R_x = np.array([[1, 0, 0],
-#                     [0, np.cos(roll), -np.sin(roll)],
-#                     [0, np.sin(roll), np.cos(roll)]])
-    
-#     # Pitch - around y-axis
-#     R_y = np.array([[np.cos(pitch), 0, np.sin(pitch)],
-#                     [0, 1, 0],
-#                     [-np.sin(pitch), 0, np.cos(pitch)]])
-    
-#     # Yaw - around z-axis
-#     R_z = np.array([[np.cos(yaw), -np.sin(yaw), 0],
-#                     [np.sin(yaw), np.cos(yaw), 0],
-#                     [0, 0, 1]])
-    
-#     # Combined rotation matrix
-#     return R_z @ R_y @ R_x
+camMatrix, distCoeff = loadParams('npz/calibration_ciirc.npz')
 
 def fitAngleWithinLimits(a1, a2, a_lower_lim, a_upper_lim):
     a = a1 + a2
@@ -127,9 +86,9 @@ def printPose(robot):
     q = robot.get_q()
     pose = robot.fk(q)
     print(pose)
-    print(q)
-    print(robot.q_min)
-    print(robot.q_max)
+    # print(q)
+    # print(robot.q_min)
+    # print(robot.q_max)
 
 def setGripperDown(robot, deg): 
     print("setGripperDown is running")
@@ -221,8 +180,6 @@ def resetCamera(camera):
     endCamera(camera)
     cam = getCamera()
     return cam
-
-
 
 def captureImgAndPose(robot):
     if not moveGripperXYZ(robot, 0.0, -0.17, -0.33): # move to the top left corner and minimum z

@@ -6,23 +6,22 @@ import cv2 as cv
 import os
 # from ctu_crs import CRS97
 # from basler_camera import BaslerCamera
-from utils import loadCamDist, arucoMarkersFinder, pairUpAruco, locateCenterOfCubes, drawFoundCubes
-
-class ArucoType(Enum):
-    DICT_4X4_50 = cv.aruco.DICT_4X4_50
-    DICT_4X4_100 = cv.aruco.DICT_4X4_100
-    DICT_4X4_250 = cv.aruco.DICT_4X4_250
-    DICT_4X4_1000 = cv.aruco.DICT_4X4_1000
+from utils import loadCamDist, arucoMarkersFinder, pairUpAruco, locateCenterOfCubes, drawFoundCubes, loadRT
 
 
-camMatrix, distCoeff = loadCamDist('calibration_ciirc.npz')
+camMatrix, distCoeff = loadCamDist('npz/calibration_ciirc.npz')
+R_base2cam, t_base2cam = loadRT('npz/R_t_base2cam.npz')
+
+T_base2cam = np.eye(4)
+T_base2cam[:3, :3] = R_base2cam
+T_base2cam[:3, 3] = t_base2cam.flatten()
 
 
-def locateAllArucoMarkers(img):
+def locateAllCubes(img):
     img, allT_base2marker, ids = arucoMarkersFinder(img, camMatrix, distCoeff, 0.036)
     pairs = pairUpAruco(allT_base2marker, ids)
     cubes = locateCenterOfCubes(pairs[0])
-    img = drawFoundCubes(img, camMatrix, distCoeff, cubes)
+    img = drawFoundCubes(img, camMatrix, distCoeff, cubes, T_base2cam)
 
 
     if img is None:
@@ -42,4 +41,4 @@ if __name__=="__main__":
     img_dir = os.path.join(root, 'imgs')
     img_filename = os.path.join(img_dir, f"img0.png")
     img = cv.imread(img_filename)
-    locateAllArucoMarkers(img)
+    locateAllCubes(img)

@@ -92,19 +92,21 @@ def arucoMarkerPoseEstimation(img, aruco_type, camera_matrix, dist_coeffs, aruco
     corners, ids, _ = detector.detectMarkers(img_gray)
 
     rvecs, tvecs = None, None
-
+    ui_list = []
     if ids is not None: 
         img = cv.aruco.drawDetectedMarkers(img,corners,ids)
 
         for corner in corners: 
+            center = np.mean(corner[0], axis=0)  
+            ui_list.append(center) 
 
             rvecs, tvecs, _ = cv.aruco.estimatePoseSingleMarkers([corner], markerLength=aruco_side_size, cameraMatrix=camera_matrix, distCoeffs=dist_coeffs)
 
             cv.drawFrameAxes(img, camera_matrix, dist_coeffs, rvecs[0], tvecs[0], aruco_side_size)
     if rvecs is not None and tvecs is not None:
-        return img, rvecs[0], tvecs[0]
+        return img, rvecs[0], tvecs[0], ui_list
     else: 
-        return img, None, None
+        return img, None, None, []
 
 def arucoMarkersFinder(img, camera_matrix, dist_coeffs, aruco_side_size): 
 
@@ -112,7 +114,7 @@ def arucoMarkersFinder(img, camera_matrix, dist_coeffs, aruco_side_size):
     aruco_params = cv.aruco.DetectorParameters()
     detector = cv.aruco.ArucoDetector(aruco_dict,aruco_params)
 
-    R_base2cam, t_base2cam = loadRT('R_t_base2cam.npz')
+    R_base2cam, t_base2cam = loadRT('npz/R_t_base2cam.npz')
 
     T_base2cam = np.eye(4)
     T_base2cam[:3, :3] = R_base2cam
@@ -204,14 +206,11 @@ def locateCenterOfCubes(pair):
     x0, y0, z0 = xyz0[0], xyz0[1], xyz0[2]
     x1, y1, z1 = xyz1[0], xyz1[1], xyz1[2]
     R_base2board = averageRotation(T_base2marker0[:3,:3], T_base2marker1[:3,:3])
-    print(T_base2marker0)
     for i in range(1, len(data), 1):
-        print(data[i][0], data[i][1])
-        print(xyz0)
+        t_offset =np.array(xyz0) + (R_base2board @ np.array([+0.1, data[i][0]/1000, data[i][1]/1000])).flatten() #0.1 so it is above the playground for now and I do not break anything
         T_base2cube = np.eye(4)
         T_base2cube[:3, :3] = R_base2board
-        T_base2cube[:3, 3] = (xyz0 + np.array([0, data[i][0]/1000, data[i][1]/1000]))
-        print(T_base2cube)
+        T_base2cube[:3, 3] = t_offset
         cubePosSE3.append(T_base2cube)
     # print(T_base2marker0)
     # print(cubePosSE3[0])
@@ -242,15 +241,11 @@ def invert_homogeneous_transform(T):
     
     return T_inv
 
-def drawFoundCubes(img, camera_matrix, dist_coeffs, cubes):
-    R_base2cam, t_base2cam = loadRT('R_t_base2cam.npz')
+def drawFoundCubes(img, camera_matrix, dist_coeffs, cubes, T_base2cam):
 
-    T_base2cam = np.eye(4)
-    T_base2cam[:3, :3] = R_base2cam
-    T_base2cam[:3, 3] = t_base2cam.flatten()
 
     for T_base2cube in cubes:
-        # print(T_base2cube)
+        print(T_base2cube)
         T_cube2base = invert_homogeneous_transform(T_base2cube)
         # print(T_cube2base)
         T_cube2cam = T_cube2base @ T_base2cam
@@ -258,8 +253,7 @@ def drawFoundCubes(img, camera_matrix, dist_coeffs, cubes):
         R_cam2cube = T_cam2cube[:3,:3]
         rvecs, _ = cv.Rodrigues(R_cam2cube)
         tvecs = T_cam2cube[:3,3]
-        break
-
+        # break
         cv.drawFrameAxes(img, camera_matrix, dist_coeffs, rvecs, tvecs, 0.04)
         
 

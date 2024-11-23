@@ -5,8 +5,8 @@ from enum import Enum
 import time
 import cv2 as cv
 import os
-# from ctu_crs import CRS97
-# from basler_camera import BaslerCamera
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import loadCamDist, arucoMarkerPoseEstimation
 
 class ArucoType(Enum):
@@ -16,12 +16,12 @@ class ArucoType(Enum):
     DICT_4X4_1000 = cv.aruco.DICT_4X4_1000
 
 
-camMatrix, distCoeff = loadCamDist('calibration_ciirc.npz')
-print(camMatrix, distCoeff)
+camMatrix, distCoeff = loadCamDist('npz/calibration_ciirc.npz')
+# print(camMatrix, distCoeff)
 
-root = os.getcwd()
-img_dir = os.path.join(root, 'aruco_calib', 'imgs')
-img_data_dir = os.path.join(root, 'aruco_calib', 'img_data')
+src = os.path.dirname(os.getcwd()) #gets parent working dir
+img_dir = os.path.join(src, 'aruco_calib', 'imgs')
+img_data_dir = os.path.join(src, 'aruco_calib', 'img_data')
 
 for i in range(80):
     img_filename = os.path.join(img_dir, f"img{i}_0.png")
@@ -34,7 +34,8 @@ for i in range(80):
     #     cv.waitKey(0)  
     #     cv.destroyAllWindows()
 
-    img_aruco, rvec, tvec = arucoMarkerPoseEstimation(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 0.06)
+    img_aruco, rvec, tvec, ui_list = arucoMarkerPoseEstimation(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 0.06)
+    
 
     # print(rvec, tvec)
 
@@ -60,3 +61,6 @@ for i in range(80):
 
         file.write("# tvecs: \n")
         np.savetxt(file, tvec, fmt='%s')
+
+        file.write("# ui_list: \n")
+        np.savetxt(file, ui_list, fmt='%s')
