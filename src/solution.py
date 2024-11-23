@@ -6,7 +6,7 @@ import cv2 as cv
 import os
 # from ctu_crs import CRS97
 # from basler_camera import BaslerCamera
-from utils import loadParams, arucoMarkersFinder
+from utils import loadCamDist, arucoMarkersFinder, pairUpAruco, locateCenterOfCubes, drawFoundCubes
 
 class ArucoType(Enum):
     DICT_4X4_50 = cv.aruco.DICT_4X4_50
@@ -15,11 +15,15 @@ class ArucoType(Enum):
     DICT_4X4_1000 = cv.aruco.DICT_4X4_1000
 
 
-camMatrix, distCoeff = loadParams('calibration_ciirc.npz')
+camMatrix, distCoeff = loadCamDist('calibration_ciirc.npz')
 
 
 def locateAllArucoMarkers(img):
-    img, rvec, tvec = arucoMarkersFinder(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 0.04)
+    img, allT_base2marker, ids = arucoMarkersFinder(img, camMatrix, distCoeff, 0.036)
+    pairs = pairUpAruco(allT_base2marker, ids)
+    cubes = locateCenterOfCubes(pairs[0])
+    img = drawFoundCubes(img, camMatrix, distCoeff, cubes)
+
 
     if img is None:
         print("Error: Could not load image.")

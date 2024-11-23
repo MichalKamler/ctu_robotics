@@ -7,7 +7,7 @@ import cv2 as cv
 import os
 # from ctu_crs import CRS97
 # from basler_camera import BaslerCamera
-from utils import loadParams, arucoMarkerPoseEstimation
+from utils import loadCamDist, arucoMarkerPoseEstimation
 
 class ArucoType(Enum):
     DICT_4X4_50 = cv.aruco.DICT_4X4_50
@@ -16,8 +16,8 @@ class ArucoType(Enum):
     DICT_4X4_1000 = cv.aruco.DICT_4X4_1000
 
 
-camMatrix, distCoeff = loadParams('calibration_ciirc.npz')
-# print(camMatrix, distCoeff)
+camMatrix, distCoeff = loadCamDist('calibration_ciirc.npz')
+print(camMatrix, distCoeff)
 
 root = os.getcwd()
 img_dir = os.path.join(root, 'aruco_calib', 'imgs')
@@ -34,7 +34,7 @@ for i in range(80):
     #     cv.waitKey(0)  
     #     cv.destroyAllWindows()
 
-    img_aruco, rvec, tvec = arucoMarkerPoseEstimation(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 0.06, [0.16, 0.03, 0.0])
+    img_aruco, rvec, tvec = arucoMarkerPoseEstimation(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 0.06)
 
     # print(rvec, tvec)
 

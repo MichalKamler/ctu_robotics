@@ -147,12 +147,12 @@ def removeDistortion(camMatrix, distCoeff, img, w, h):
 def calibrate(showPics=True):
     # Read Image
     root = os.getcwd()
-    calibrationDir = os.path.join(root, 'demoImages//calibration')
+    calibrationDir = os.path.join(root, 'chessboard_images')
     imgPathList = glob.glob(os.path.join(calibrationDir, '*.png'))
 
     # Initialize 
-    nRows = 4
-    nCols = 7
+    nRows = 10
+    nCols = 15
     termCriteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     worldPtsCur = np.zeros((nRows * nCols, 3), np.float32)
     worldPtsCur[:,:2] = np.mgrid[0:nRows, 0:nCols].T.reshape(-1,2)
@@ -181,7 +181,7 @@ def calibrate(showPics=True):
 
     # Save Calibration Parameters
     curFolder = os.path.dirname(os.path.abspath(__file__))
-    paramPath = os.path.join(curFolder, 'calibration.npz')
+    paramPath = os.path.join(curFolder, 'calibration_ciirc.npz')
     np.savez(paramPath, repError=repError, camMatrix=camMatrix, distCoeff=distCoeff, rvecs=rvecs, tvecs=tvecs)
 
     return camMatrix, distCoeff

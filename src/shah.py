@@ -97,13 +97,18 @@ def loadRvecsTvecs(idx, directory=None):
             
             # Accumulate rvec data
             if rvec_start and line.strip():
-                rvec_lines.append(float(line.strip()))
+                values = line.strip().split()
+                if len(values) == 3:  # Ensure it has 3 values
+                    rvec_lines.append([float(v) for v in values])
             
             # Accumulate tvec data
             if tvec_start and line.strip():
-                tvec_lines.append(float(line.strip()))
+                values = line.strip().split()
+                if len(values) == 3:  # Ensure it has 3 values
+                    tvec_lines.append([float(v) for v in values])
     
     # Convert the accumulated lines to NumPy arrays
+
     rvec = np.array(rvec_lines)
     tvec = np.array(tvec_lines)
 
@@ -143,17 +148,14 @@ if __name__=="__main__":
 
     R_base2gripper = [A[:3,:3] for A in A_filtered]
     t_base2gripper = [A[:3, 3] for A in A_filtered]
-    R_cam2gripper= [B[:3,:3] for B in B_filtered]
-    t_cam2gripper = [B[:3, 3] for B in B_filtered]
+    R_cam2target= [B[:3,:3] for B in B_filtered] #due to my already did translation is same as cam2gripper
+    t_cam2target = [B[:3, 3] for B in B_filtered]
 
-    R_gripper2base = [R.T for R in R_base2gripper]
-    t_gripper2base = [-R.T @ t for R, t in zip(R_base2gripper, t_base2gripper)]
-    R_target2cam = R_cam2gripper
-    t_target2cam = t_cam2gripper
 
-    R_cam2base, t_cam2base = cv.calibrateHandEye(R_gripper2base, t_gripper2base, R_target2cam, t_target2cam, method=cv.CALIB_HAND_EYE_TSAI)
-    print(R_cam2base, t_cam2base)
+    R_gripper2target, t_gripper2target, R_base2camera, t_base2camera = cv.calibrateRobotWorldHandEye(R_base2gripper, t_base2gripper, R_cam2target, t_cam2target, method=cv.CALIB_ROBOT_WORLD_HAND_EYE_SHAH)
+    # print(R_cam2base, t_cam2base)
     # Save Calibration Parameters
+    # print(R_gripper2target, t_gripper2target, R_base2camera, t_base2camera)
     curFolder = os.path.dirname(os.path.abspath(__file__))
-    paramPath = os.path.join(curFolder, 'R_t_cam2base.npz')
-    np.savez(paramPath, R=R_cam2base, t=t_cam2base)
+    paramPath = os.path.join(curFolder, 'R_t_base2cam.npz')
+    np.savez(paramPath, R=R_base2camera, t=t_base2camera)
