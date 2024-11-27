@@ -207,7 +207,7 @@ def locateCenterOfCubes(pair):
     x1, y1, z1 = xyz1[0], xyz1[1], xyz1[2]
     R_base2board = averageRotation(T_base2marker0[:3,:3], T_base2marker1[:3,:3])
     for i in range(1, len(data), 1):
-        t_offset =np.array(xyz0) + (R_base2board @ np.array([+0.1, data[i][0]/1000, data[i][1]/1000])).flatten() #0.1 so it is above the playground for now and I do not break anything
+        t_offset =np.array(xyz0) + (R_base2board @ np.array([+0., data[i][0]/1000, data[i][1]/1000])).flatten() #0.1 so it is above the playground for now and I do not break anything
         T_base2cube = np.eye(4)
         T_base2cube[:3, :3] = R_base2board
         T_base2cube[:3, 3] = t_offset

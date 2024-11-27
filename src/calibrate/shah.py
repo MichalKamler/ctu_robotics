@@ -249,44 +249,45 @@ if __name__=="__main__":
     R_gripper2target, t_gripper2target, R_base2camera, t_base2camera = cv.calibrateRobotWorldHandEye(R_base2gripper, t_base2gripper, R_cam2target, t_cam2target, method=cv.CALIB_ROBOT_WORLD_HAND_EYE_SHAH)
     # Save Calibration Parameters
     src = os.path.dirname(os.getcwd()) #gets parent working dir
-    # paramPath = os.path.join(src, 'npz/R_t_base2cam.npz')
-    # np.savez(paramPath, R=R_base2camera, t=t_base2camera)
+    paramPath = os.path.join(src, 'npz/R_t_base2cam.npz')
+    print(R_base2camera, t_base2camera)
+    np.savez(paramPath, R=R_base2camera, t=t_base2camera)
 
 
-    T_gripper2target = np.eye(4)
-    T_gripper2target[:3,:3] = R_gripper2target
-    T_gripper2target[:3, 3] = t_gripper2target.flatten()
+    # T_gripper2target = np.eye(4)
+    # T_gripper2target[:3,:3] = R_gripper2target
+    # T_gripper2target[:3, 3] = t_gripper2target.flatten()
 
-    T_base2camera = np.eye(4)
-    T_base2camera[:3,:3] = R_base2camera
-    T_base2camera[:3, 3] = t_base2camera.flatten()
+    # T_base2camera = np.eye(4)
+    # T_base2camera[:3,:3] = R_base2camera
+    # T_base2camera[:3, 3] = t_base2camera.flatten()
 
-    print("T_base2camera: \n", T_base2camera)
+    # print("T_base2camera: \n", T_base2camera)
 
-    ui = np.array([point.flatten() for point in ui_list])  # List of 2D points
+    # ui = np.array([point.flatten() for point in ui_list])  # List of 2D points
 
-    initial_guess_flat = matToParam(T_gripper2target, T_base2camera)
+    # initial_guess_flat = matToParam(T_gripper2target, T_base2camera)
 
-    print("Error before optimization: ", reprojectionError(initial_guess_flat, T_gripper2target, T_base2camera, T_base2gripper, ui))
+    # print("Error before optimization: ", reprojectionError(initial_guess_flat, T_gripper2target, T_base2camera, T_base2gripper, ui))
 
-    result = minimize(reprojectionError, initial_guess_flat, args=(T_gripper2target, T_base2camera, T_base2gripper, ui))
+    # result = minimize(reprojectionError, initial_guess_flat, args=(T_gripper2target, T_base2camera, T_base2gripper, ui))
 
-    optimized_T_gripper2target, optimized_T_base2camera = paramToMat(result.x, T_gripper2target, T_base2camera)
+    # optimized_T_gripper2target, optimized_T_base2camera = paramToMat(result.x, T_gripper2target, T_base2camera)
 
 
     # print(optimized_T_gripper2target)
     # print(optimized_T_base2camera)
 
-    final_guess_flat = matToParam(optimized_T_gripper2target, optimized_T_base2camera)
+    # final_guess_flat = matToParam(optimized_T_gripper2target, optimized_T_base2camera)
 
-    print("Error after optimization: ", reprojectionError(final_guess_flat, T_gripper2target, T_base2camera, T_base2gripper, ui))
+    # print("Error after optimization: ", reprojectionError(final_guess_flat, T_gripper2target, T_base2camera, T_base2gripper, ui))
 
-    print("optimized_T_base2camera: \n", optimized_T_base2camera)
+    # print("optimized_T_base2camera: \n", optimized_T_base2camera)
 
-    opt_R_base2camera = optimized_T_base2camera[:3,:3]
-    opt_t_base2camera = optimized_T_base2camera[:3, 3]
-    paramPath = os.path.join(src, 'npz/R_t_base2cam.npz')
-    np.savez(paramPath, R=opt_R_base2camera, t=opt_t_base2camera)
+    # opt_R_base2camera = optimized_T_base2camera[:3,:3]
+    # opt_t_base2camera = optimized_T_base2camera[:3, 3]
+    # paramPath = os.path.join(src, 'npz/R_t_base2cam.npz')
+    # np.savez(paramPath, R=opt_R_base2camera, t=opt_t_base2camera)
 
 
     
