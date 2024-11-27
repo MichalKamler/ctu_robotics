@@ -251,6 +251,7 @@ if __name__=="__main__":
     src = os.path.dirname(os.getcwd()) #gets parent working dir
     paramPath = os.path.join(src, 'npz/R_t_base2cam.npz')
     print(R_base2camera, t_base2camera)
+    print(R_gripper2target, t_gripper2target)
     np.savez(paramPath, R=R_base2camera, t=t_base2camera)
 
 

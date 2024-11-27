@@ -148,11 +148,14 @@ def calibrate(showPics=True):
     # Read Image
     src = os.path.dirname(os.getcwd()) #gets parent working dir
     calibrationDir = os.path.join(src, 'chessboard_images')
+    # calibrationDir = os.path.join(src, 'che')
     imgPathList = glob.glob(os.path.join(calibrationDir, '*.png'))
 
     # Initialize 
     nRows = 10
     nCols = 15
+    # nRows = 6
+    # nCols = 8
     termCriteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     worldPtsCur = np.zeros((nRows * nCols, 3), np.float32)
     worldPtsCur[:,:2] = np.mgrid[0:nRows, 0:nCols].T.reshape(-1,2)
@@ -176,12 +179,15 @@ def calibrate(showPics=True):
 
     # Calibrate
     repError, camMatrix, distCoeff, rvecs, tvecs = cv.calibrateCamera(worldPtsList, imgPtsList, imgGray.shape[::-1], None, None)
+    camMatrix[0,2] = 1912/2
+    camMatrix[1,2] = 1200/2
     print('Camera Matrix: \n', camMatrix)
     print('Reproj Error (pixels): {:.4f}'.format(repError))
 
     # Save Calibration Parameters
     # curFolder = os.path.dirname(os.path.abspath(__file__))
     paramPath = os.path.join(src, 'npz/calibration_ciirc.npz')
+    
     np.savez(paramPath, repError=repError, camMatrix=camMatrix, distCoeff=distCoeff, rvecs=rvecs, tvecs=tvecs)
 
     return camMatrix, distCoeff
@@ -217,7 +223,7 @@ if __name__ == "__main__":
         # camera.start()
         # if capture_and_calibrate_distorted_img:
             # displayFeed(camera)
-    camMatrix, distCoeff = calibrate(True)
+    camMatrix, distCoeff = calibrate(False)
             # displayFeed(camera, camMatrix, distCoeff)
 
         # else:

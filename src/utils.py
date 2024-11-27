@@ -127,6 +127,9 @@ def arucoMarkersFinder(img, camera_matrix, dist_coeffs, aruco_side_size):
 
     if ids is not None: 
         img = cv.aruco.drawDetectedMarkers(img,corners,ids)
+        for i in range(len(ids)):
+            cv.putText(img, str(ids[i]), tuple(corners[i][0][0].astype(int)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2, cv.LINE_AA)
+
 
         for corner in corners: 
             rvecs, tvecs, _ = cv.aruco.estimatePoseSingleMarkers([corner], markerLength=aruco_side_size, cameraMatrix=camera_matrix, distCoeffs=dist_coeffs)
@@ -179,6 +182,22 @@ def averageRotation(rot1, rot2):
     
     return rot_avg
 
+def rotXYZ(rx, ry, rz):
+    Rx = np.array([[1, 0, 0],
+                [0, np.cos(rx), -np.sin(rx)],
+                [0, np.sin(rx), np.cos(rx)]])
+
+    Ry = np.array([[np.cos(ry), 0, np.sin(ry)],
+                    [0, 1, 0],
+                    [-np.sin(ry), 0, np.cos(ry)]])
+
+    Rz = np.array([[np.cos(rz), -np.sin(rz), 0],
+                    [np.sin(rz), np.cos(rz), 0],
+                    [0, 0, 1]])
+
+    R = Rz @ Ry @ Rx
+    return R
+
 def locateCenterOfCubes(pair):
     # R_cam2base, t_cam2base = loadRT('R_t_base2cam.npz')
     #load data for the board
@@ -206,10 +225,11 @@ def locateCenterOfCubes(pair):
     x0, y0, z0 = xyz0[0], xyz0[1], xyz0[2]
     x1, y1, z1 = xyz1[0], xyz1[1], xyz1[2]
     R_base2board = averageRotation(T_base2marker0[:3,:3], T_base2marker1[:3,:3])
+    const_R = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2)
     for i in range(1, len(data), 1):
         t_offset =np.array(xyz0) + (R_base2board @ np.array([+0., data[i][0]/1000, data[i][1]/1000])).flatten() #0.1 so it is above the playground for now and I do not break anything
         T_base2cube = np.eye(4)
-        T_base2cube[:3, :3] = R_base2board
+        T_base2cube[:3, :3] = R_base2board @ const_R
         T_base2cube[:3, 3] = t_offset
         cubePosSE3.append(T_base2cube)
     # print(T_base2marker0)
@@ -245,7 +265,7 @@ def drawFoundCubes(img, camera_matrix, dist_coeffs, cubes, T_base2cam):
 
 
     for T_base2cube in cubes:
-        print(T_base2cube)
+        # print(T_base2cube)
         T_cube2base = invert_homogeneous_transform(T_base2cube)
         # print(T_cube2base)
         T_cube2cam = T_cube2base @ T_base2cam
