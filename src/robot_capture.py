@@ -6,7 +6,7 @@ import cv2 as cv
 import os
 from ctu_crs import CRS97
 from basler_camera import BaslerCamera
-from utils import loadParams, arucoMarkerPoseEstimation
+from utils import loadCamDist, arucoMarkerPoseEstimation
 
 monitor_terminal_cmds = True
 
@@ -17,7 +17,7 @@ class ArucoType(Enum):
     DICT_4X4_1000 = cv.aruco.DICT_4X4_1000
 
 
-camMatrix, distCoeff = loadParams('npz/calibration_ciirc.npz')
+camMatrix, distCoeff = loadCamDist('npz/calibration_ciirc.npz')
 
 def fitAngleWithinLimits(a1, a2, a_lower_lim, a_upper_lim):
     a = a1 + a2
@@ -91,14 +91,14 @@ def printPose(robot):
     # print(robot.q_max)
 
 def setGripperDown(robot, deg): 
-    print("setGripperDown is running")
+    # print("setGripperDown is running")
     q0 = robot.get_q()
 
     rad = np.deg2rad(deg)
     q = fitSumOfq(robot, q0, [0.0, 0.0, 0.0, 0.0, rad, 0.0])
     robot.move_to_q(q)
     robot.wait_for_motion_stop()
-    print("setGripperDown completed")
+    # print("setGripperDown completed")
 
 def start(robot):
     q0 = robot.get_q()
@@ -109,7 +109,7 @@ def start(robot):
     # setGripperDown(robot,-90)
 
 def moveGripperXYZ(robot, x, y, z):
-    print("moveGripperXYZ is running")
+    # print("moveGripperXYZ is running")
     q0 = robot.get_q()
     pose = robot.fk(q0)
 
@@ -120,7 +120,7 @@ def moveGripperXYZ(robot, x, y, z):
         return 0
     robot.move_to_q(best_q)
     robot.wait_for_motion_stop()
-    print("moveGripperXYZ completed")
+    # print("moveGripperXYZ completed")
     return 1
 
 def reset(robot):
@@ -170,7 +170,7 @@ def getCamera():
     camera.connect_by_name("camera-crs97")
     camera.open()
     camera.set_parameters()
-    camera.start()
+    # camera.start()
     return camera
 
 def endCamera(camera):
@@ -182,16 +182,20 @@ def resetCamera(camera):
     return cam
 
 def captureImgAndPose(robot):
-    if not moveGripperXYZ(robot, 0.0, -0.17, -0.33): # move to the top left corner and minimum z
+    if not moveGripperXYZ(robot, 0.02, -0.22, -0.35): # move to the top left corner and minimum z
         print("nejde nic")
         return
-    x_max = 0.18
-    y_max = 0.34
-    z_max = 0.12
+    x_max = 0.24
+    y_max = 0.44
+    z_max = 0.16
 
     x_step = 0.04
-    y_step = 0.06
-    z_step = 0.06
+    y_step = 0.04
+    z_step = 0.03
+
+    # x_step = 0.14
+    # y_step = 0.22
+    # z_step = 0.03
 
     x_range = int(x_max/x_step) 
     y_range = int(y_max/y_step) 
@@ -205,8 +209,14 @@ def captureImgAndPose(robot):
     move_y_times = 0
 
     rotateGripper(robot, -90) #not sure about the -90 change !!!
+
+    q0 = robot.get_q()
+    pose = robot.fk(q0)
+    curRot = pose[:3,:3]
+
     for z in range(z_range):
         for x in range(x_range):
+            resetRot(robot,curRot)
             savePicPose(robot, camera, counter)
             counter += 1
             for y in range(y_range):
@@ -229,8 +239,23 @@ def captureImgAndPose(robot):
                 setGripperDown(robot, -30)
             
             rotateGripper(robot, -180)
-            moveGripperXYZ(robot, x_step, -y_step*y_range, 0)
-        moveGripperXYZ(robot, -x_step*x_range, 0, z_step)
+            moveGripperXYZ(robot, 0, -y_step*y_range, 0)
+            moveGripperXYZ(robot, x_step, 0, 0)            
+        moveGripperXYZ(robot, -x_step*x_range, 0, 0)
+        moveGripperXYZ(robot, 0, 0, z_step)
+
+def resetRot(robot, rot):
+    q0 = robot.get_q()
+    pose = robot.fk(q0)
+
+    pose[:3,:3] = rot
+
+    best_q = validIk(robot, pose)
+    if best_q is None:
+        return 0
+    robot.move_to_q(best_q)
+    robot.wait_for_motion_stop()
+
 
 def savePicPose(robot, camera, idx):
     root = os.getcwd()
@@ -254,7 +279,7 @@ def savePicPose(robot, camera, idx):
 
     saveQ(robot, idx, poses_dir)
 
-    img_aruco, rvec, tvec = arucoMarkerPoseEstimation(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 6.0, [16, 3.0, 0])
+    img_aruco, rvec, tvec, _ = arucoMarkerPoseEstimation(img, ArucoType.DICT_4X4_50, camMatrix, distCoeff, 6.0)
 
     if rvec is None or tvec is None:
         return True

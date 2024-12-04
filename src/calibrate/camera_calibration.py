@@ -147,18 +147,22 @@ import os
 def calibrate(showPics=True):
     # Read Image
     src = os.path.dirname(os.getcwd()) #gets parent working dir
-    calibrationDir = os.path.join(src, 'chessboard_images')
+    # calibrationDir = os.path.join(src, 'chessboard_images')
+    calibrationDir = os.path.join(src, 'chessboard')
     # calibrationDir = os.path.join(src, 'che')
     imgPathList = glob.glob(os.path.join(calibrationDir, '*.png'))
 
     # Initialize 
-    nRows = 10
-    nCols = 15
-    # nRows = 6
-    # nCols = 8
+    # nRows = 10
+    # nCols = 15
+    nRows = 6
+    nCols = 8
+    square_size = 0.05 #m
+
     termCriteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     worldPtsCur = np.zeros((nRows * nCols, 3), np.float32)
     worldPtsCur[:,:2] = np.mgrid[0:nRows, 0:nCols].T.reshape(-1,2)
+    worldPtsCur *= square_size
     worldPtsList = []
     imgPtsList = []
 

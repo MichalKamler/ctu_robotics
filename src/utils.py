@@ -198,6 +198,22 @@ def rotXYZ(rx, ry, rz):
     R = Rz @ Ry @ Rx
     return R
 
+def Rx(rad):
+    return np.array([[1, 0, 0],
+                [0, np.cos(rad), -np.sin(rad)],
+                [0, np.sin(rad), np.cos(rad)]])
+
+def Ry(rad):
+    return np.array([[np.cos(rad), 0, np.sin(rad)],
+                    [0, 1, 0],
+                    [-np.sin(rad), 0, np.cos(rad)]])
+
+def Rz(rad):
+    return np.array([[np.cos(rad), -np.sin(rad), 0],
+                    [np.sin(rad), np.cos(rad), 0],
+                    [0, 0, 1]])
+
+
 def locateCenterOfCubes(pair):
     # R_cam2base, t_cam2base = loadRT('R_t_base2cam.npz')
     #load data for the board
@@ -219,13 +235,17 @@ def locateCenterOfCubes(pair):
     T_base2marker1 = pair['T'][1]
 
     cubePosSE3 = []
+    if T_base2marker0[0,3]>T_base2marker1[0,3]:
+        R_grip = Rz(0)
+    else:
+        R_grip = Rz(np.pi)
 
     xyz0 = T_base2marker0[:3, 3]
     xyz1 = T_base2marker1[:3, 3]
     x0, y0, z0 = xyz0[0], xyz0[1], xyz0[2]
     x1, y1, z1 = xyz1[0], xyz1[1], xyz1[2]
     R_base2board = averageRotation(T_base2marker0[:3,:3], T_base2marker1[:3,:3])
-    const_R = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2)
+    const_R = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2) @ rotXYZ(0,0,np.pi/2) @ R_grip
     for i in range(1, len(data), 1):
         t_offset =np.array(xyz0) + (R_base2board @ np.array([+0., data[i][0]/1000, data[i][1]/1000])).flatten() #0.1 so it is above the playground for now and I do not break anything
         T_base2cube = np.eye(4)

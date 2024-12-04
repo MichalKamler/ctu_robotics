@@ -90,6 +90,9 @@ def solveB(robot, camera):
     cubesList, aruco_pairs = locateAllCubes(img)
     cubesA, cubesB = cubesList[0], cubesList[1]
     answer = input(f"Cubes are located on board A: {aruco_pairs[0]['ids']} or B: {aruco_pairs[1]['ids']}").lower()
+    # print(cubesA)
+    # print()
+    # print(cubesB)
 
     if answer == "a":
         print("You chose A.")
@@ -110,10 +113,10 @@ def moveCubesToHoles(robot, cubesPoses, holesPoses):
 
     for i, (cubePose, holePose) in enumerate(zip(cubesPoses, holesPoses)):
         gripperOpen(robot)
-        cubePose[2,3] = avgz_cubes + 0.05 #TEST
+        cubePose[2,3] = avgz_cubes + 0.035 #TEST
         linMoveCubeOrHole(robot, cubePose, pick=True)
         moveCubeOrHolePose(robot, homePose)
-        holePose[2,3] = avgz_holes + 0.07
+        holePose[2,3] = avgz_holes + 0.035
         linMoveCubeOrHole(robot, holePose, pick=False)
         moveCubeOrHolePose(robot, homePose)
 
@@ -125,7 +128,7 @@ def linMoveCubeOrHole(robot, cubePose, pick):
 
     listOfPoses = []
     start_above = 0.03
-    step = 0.003
+    step = 0.006
     n = int(start_above/step)
     z_values = np.linspace(start_above, step, n)
     curOff = np.array([[0, 0, z] for z in z_values])
@@ -192,16 +195,24 @@ def test(robot):
 
 def validIkForCubesOrHoles(robot, pose):
     q0 = robot.get_q()
-    Rx = np.array([[1, 0, 0],
-                [0, np.cos(np.pi/2), -np.sin(np.pi/2)],
-                [0, np.sin(np.pi/2), np.cos(np.pi/2)]])
+    # Ry = np.array([[np.cos(np.pi/2), 0, np.sin(np.pi/2)],
+    #                 [0, 1, 0],
+    #                 [-np.sin(np.pi/2), 0, np.cos(np.pi/2)]])
+    # Rx = np.array([[1, 0, 0],
+    #             [0, np.cos(np.pi/2), -np.sin(np.pi/2)],
+    #             [0, np.sin(np.pi/2), np.cos(np.pi/2)]])
+    Rz = np.array([[np.cos(np.pi/2), -np.sin(np.pi/2), 0],
+                    [np.sin(np.pi/2), np.cos(np.pi/2), 0],
+                    [0, 0, 1]])
     valid_q_sol = []
     for i in range(4):
         R_pose = pose[:3,:3]
-        R_pose = Rx @ R_pose
+        R_pose = R_pose @ Rz
         pose[:3,:3] = R_pose
+        # print(R_pose)
         possible_q_config = robot.ik(pose)
         valid_q_sol.extend(filterSolOutBounds(robot, possible_q_config))
+        
 
     valid_q_sol = filterSolOutBounds(robot, possible_q_config)
     best_q = None
@@ -347,7 +358,7 @@ def getCamera():
     camera.connect_by_name("camera-crs97")
     camera.open()
     camera.set_parameters()
-    camera.start()
+    # camera.start()
     return camera
 
 def endCamera(camera):
@@ -412,13 +423,14 @@ def monitor_terminal(robot, camera):
         parse_and_execute(robot, camera, user_input)
 
 if __name__=="__main__":
-    root = os.getcwd()
-    img_dir = os.path.join(root, 'imgs')
-    img_filename = os.path.join(img_dir, f"img0.png")
-    img = cv.imread(img_filename)
-    locateAllCubes(img)
+    # root = os.getcwd()
+    # img_dir = os.path.join(root, 'imgs')
+    # img_filename = os.path.join(img_dir, f"img0.png")
+    # img = cv.imread(img_filename)
+    # cubes, _ = locateAllCubes(img)
+    # print(cubes)
 
-    # robot = CRS97()
-    # robot.initialize() # performs soft home!!
-    # camera = getCamera()
-    # monitor_terminal(robot, camera)
+    robot = CRS97()
+    robot.initialize() # performs soft home!!
+    camera = getCamera()
+    monitor_terminal(robot, camera)
