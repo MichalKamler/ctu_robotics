@@ -35,12 +35,49 @@ def rotXYZ(rx, ry, rz):
 
 R_gripper2cube = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2)
 
+def avgAllMeasurements(multiple_measurements):
+    num_measurements = len(multiple_measurements)
+    num_poses = len(multiple_measurements[0])
 
-def locateAllCubes(img):
-    img, allT_base2marker, ids = arucoMarkersFinder(img, camMatrix, distCoeff, 0.036)
+    # Initialize a list to store averaged SE(3) matrices
+    average_poses = []
+
+    for pose_idx in range(num_poses):
+        pose_measurements = [multiple_measurements[measurement][pose_idx] for measurement in range(num_measurements)]
+        
+        avg_rotation = np.mean([pose[:3, :3] for pose in pose_measurements], axis=0)
+        
+        U, _, Vt = np.linalg.svd(avg_rotation)
+        avg_rotation = U @ Vt
+        
+        avg_translation = np.mean([pose[:3, 3] for pose in pose_measurements], axis=0)
+        
+        avg_pose = np.eye(4)
+        avg_pose[:3, :3] = avg_rotation
+        avg_pose[:3, 3] = avg_translation
+        # if avg_pose[1,3]<=0:
+        avg_pose[1,3] = avg_pose[1,3] -(0.03)*avg_pose[1,3]
+        # else: 
+            # avg_pose[1,3] = avg_pose[1,3] + max(-(0.04)*avg_pose[1,3], 0)
+
+        print("adjust is: ", -(0.04)*avg_pose[1,3])
+
+        average_poses.append(avg_pose)
+
+    return average_poses
+
+
+def locateAllCubes(camera):
+    multiple_measurements = []
+    for i in range(10):
+        img = waitForImg(camera)
+        img, allT_base2marker, ids = arucoMarkersFinder(img, camMatrix, distCoeff, 0.036)
+        multiple_measurements.append(allT_base2marker)
+    allT_base2marker_avg = avgAllMeasurements(multiple_measurements)
+
     cubesList = []
     if len(ids)>0:
-        pairs = pairUpAruco(allT_base2marker, ids)
+        pairs = pairUpAruco(allT_base2marker_avg, ids)
         for pair in pairs:
             cubes = locateCenterOfCubes(pair)
             img = drawFoundCubes(img, camMatrix, distCoeff, cubes, T_base2cam)
@@ -57,12 +94,16 @@ def locateAllCubes(img):
         cv.destroyAllWindows()
     return cubesList, pairs
     
+def redoRot(poseList, rot):
+    for i in range(len(poseList)):
+        poseList[i][:3,:3] = rot
+    return poseList
+
 def solveA(robot, camera):
     start(robot)
     moveBase(robot, 30)
-    img = waitForImg(camera)
+    cubesList, _ = locateAllCubes(camera)
     moveBase(robot, -30)
-    cubesList, _ = locateAllCubes(img)
     cubes = cubesList[0]
     q = robot.get_q()
     homePose = robot.fk(q)
@@ -84,11 +125,19 @@ def solveA(robot, camera):
 
 def solveB(robot, camera):
     start(robot)
+    q0 = robot.get_q()
+    pose_home = robot.fk(q0)
+    curRot = pose_home[:3,:3]
+
     moveBase(robot, 30)
-    img = waitForImg(camera)
+    cubesList, aruco_pairs = locateAllCubes(camera)
     moveBase(robot, -30)
-    cubesList, aruco_pairs = locateAllCubes(img)
+    
     cubesA, cubesB = cubesList[0], cubesList[1]
+    cubesA = redoRot(cubesA, curRot) # because planar solution
+    cubesB = redoRot(cubesB, curRot)
+    # print("A: ", cubesA)
+    # print("B: ", cubesB)
     answer = input(f"Cubes are located on board A: {aruco_pairs[0]['ids']} or B: {aruco_pairs[1]['ids']}").lower()
     # print(cubesA)
     # print()
@@ -108,20 +157,18 @@ def moveCubesToHoles(robot, cubesPoses, holesPoses):
     q = robot.get_q()
     homePose = robot.fk(q)
 
-    avgz_cubes = sum(mat[2, 3] for mat in cubesPoses)/len(cubesPoses)
-    avgz_holes = sum(mat[2, 3] for mat in holesPoses)/len(holesPoses)
+    avgz_cubes = sum(mat[2, 3] for mat in cubesPoses)/len(cubesPoses) + 0.055
+    avgz_holes = sum(mat[2, 3] for mat in holesPoses)/len(holesPoses) + 0.06
+    print("avgz: ", avgz_cubes, avgz_holes)
 
     for i, (cubePose, holePose) in enumerate(zip(cubesPoses, holesPoses)):
         gripperOpen(robot)
-        cubePose[2,3] = avgz_cubes + 0.035 #TEST
+        cubePose[2,3] = avgz_cubes  #TEST
         linMoveCubeOrHole(robot, cubePose, pick=True)
         moveCubeOrHolePose(robot, homePose)
-        holePose[2,3] = avgz_holes + 0.035
+        holePose[2,3] = avgz_holes 
         linMoveCubeOrHole(robot, holePose, pick=False)
         moveCubeOrHolePose(robot, homePose)
-
-
-
 
 
 def linMoveCubeOrHole(robot, cubePose, pick):
@@ -156,9 +203,7 @@ def linMoveCubeOrHole(robot, cubePose, pick):
     for pose in listOfPoses:
         moveCubeOrHolePose(robot, pose)
     
-    
 
-    
 def moveCubeOrHolePose(robot, pose):
     best_q = validIkForCubesOrHoles(robot, pose)
     if best_q is None:

@@ -117,6 +117,7 @@ def moveGripperXYZ(robot, x, y, z):
 
     best_q = validIk(robot, pose)
     if best_q is None:
+        print(f"failed to move x: {x}, y: {y}, z: {z}")
         return 0
     robot.move_to_q(best_q)
     robot.wait_for_motion_stop()
@@ -146,13 +147,13 @@ def moveBase(robot, deg):
     print("moveBase completed")
 
 def rotateGripper(robot, deg):
-    print("rotateGripper is running")
+    # print("rotateGripper is running")
     rad = np.deg2rad(deg)
     q0 = robot.get_q()
     q = fitSumOfq(robot, q0, [0.0, 0.0, 0.0, 0.0, 0.0, rad])
     robot.move_to_q(q)
     robot.wait_for_motion_stop()
-    print("rotateGripper completed")
+    # print("rotateGripper completed")
 
 def waitForImg(camera):
     img = camera.grab_image()
@@ -182,16 +183,16 @@ def resetCamera(camera):
     return cam
 
 def captureImgAndPose(robot):
-    if not moveGripperXYZ(robot, 0.02, -0.22, -0.35): # move to the top left corner and minimum z
+    if not moveGripperXYZ(robot, 0.00, -0.22, -0.35): # move to the top left corner and minimum z
         print("nejde nic")
         return
-    x_max = 0.24
-    y_max = 0.44
+    x_max = 0.42
+    y_max = 0.40
     z_max = 0.16
 
-    x_step = 0.04
+    x_step = 0.06 #trust bro some mistake is integrating so this nees to be larger :(
     y_step = 0.04
-    z_step = 0.03
+    z_step = 0.04
 
     # x_step = 0.14
     # y_step = 0.22
@@ -211,10 +212,12 @@ def captureImgAndPose(robot):
     rotateGripper(robot, -90) #not sure about the -90 change !!!
 
     q0 = robot.get_q()
-    pose = robot.fk(q0)
-    curRot = pose[:3,:3]
+    pose_home = robot.fk(q0)
+    curRot = pose_home[:3,:3]
 
     for z in range(z_range):
+        movePose(robot, pose_home)
+        moveGripperXYZ(robot, 0., 0., z*z_step)
         for x in range(x_range):
             resetRot(robot,curRot)
             savePicPose(robot, camera, counter)
@@ -240,9 +243,17 @@ def captureImgAndPose(robot):
             
             rotateGripper(robot, -180)
             moveGripperXYZ(robot, 0, -y_step*y_range, 0)
+            resetRot(robot,curRot)
             moveGripperXYZ(robot, x_step, 0, 0)            
-        moveGripperXYZ(robot, -x_step*x_range, 0, 0)
-        moveGripperXYZ(robot, 0, 0, z_step)
+        # moveGripperXYZ(robot, -x_step*x_range, 0, 0)
+        # moveGripperXYZ(robot, 0, 0, z_step)
+
+def movePose(robot, pose):
+    best_q = validIk(robot, pose)
+    if best_q is None:
+        return 0
+    robot.move_to_q(best_q)
+    robot.wait_for_motion_stop()
 
 def resetRot(robot, rot):
     q0 = robot.get_q()
@@ -322,6 +333,14 @@ def saveQ(robot, i, directory =None):
         np.savetxt(file, [xyz], fmt='%s')
     # print("saveQ completed")
 
+def gripperOpen(robot):
+    robot.gripper.control_position_relative(0.0)
+    robot.wait_for_motion_stop()
+
+def gripperGrab(robot):
+    robot.gripper.control_position_relative(0.99)
+    robot.wait_for_motion_stop()
+
 def end(robot):
     print("end is running!")
     robot.soft_home()
@@ -340,6 +359,8 @@ functions = {
     "saveQ": saveQ,
     "reset": reset,
     "cage": cage,
+    "gripperOpen": gripperOpen,
+    "gripperGrab": gripperGrab,
     "captureImgAndPose": captureImgAndPose,
     "end": end,
 }
