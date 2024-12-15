@@ -17,6 +17,38 @@ T_base2cam[:3, :3] = R_base2cam
 T_base2cam[:3, 3] = t_base2cam.flatten()
 monitor_terminal_cmds = True
 
+def rotationMatrixToEulerAngles(R):
+    assert R.shape == (3, 3), "Rotation matrix must be 3x3"
+    
+    sy = np.sqrt(R[0, 0]**2 + R[1, 0]**2)
+    singular = sy < 1e-6
+
+    if not singular:
+        rx = np.arctan2(R[2, 1], R[2, 2])
+        ry = np.arctan2(-R[2, 0], sy)
+        rz = np.arctan2(R[1, 0], R[0, 0])
+    else:
+        rx = np.arctan2(-R[1, 2], R[1, 1])
+        ry = np.arctan2(-R[2, 0], sy)
+        rz = 0  
+
+    return np.array([rx*180/np.pi, ry*180/np.pi, rz*180/np.pi])
+
+def Rx(rad):
+    return np.array([[1, 0, 0],
+                [0, np.cos(rad), -np.sin(rad)],
+                [0, np.sin(rad), np.cos(rad)]])
+
+def Ry(rad):
+    return np.array([[np.cos(rad), 0, np.sin(rad)],
+                    [0, 1, 0],
+                    [-np.sin(rad), 0, np.cos(rad)]])
+
+def Rz(rad):
+    return np.array([[np.cos(rad), -np.sin(rad), 0],
+                    [np.sin(rad), np.cos(rad), 0],
+                    [0, 0, 1]])
+
 def rotXYZ(rx, ry, rz):
     Rx = np.array([[1, 0, 0],
                 [0, np.cos(rx), -np.sin(rx)],
@@ -33,8 +65,6 @@ def rotXYZ(rx, ry, rz):
     R = Rz @ Ry @ Rx
     return R
 
-R_gripper2cube = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2)
-
 def avgAllMeasurements(multiple_measurements):
     num_measurements = len(multiple_measurements)
     num_poses = len(multiple_measurements[0])
@@ -49,23 +79,47 @@ def avgAllMeasurements(multiple_measurements):
         
         U, _, Vt = np.linalg.svd(avg_rotation)
         avg_rotation = U @ Vt
+        avg_rotation = pose_measurements[0][:3,:3]
         
-        avg_translation = np.mean([pose[:3, 3] for pose in pose_measurements], axis=0)
+            # avg_translation = np.mean([pose[:3, 3] for pose in pose_measurements], axis=0)
+
+        translations = np.array([pose[:3, 3] for pose in pose_measurements])
+        # Compute the mean translation
+        avg_translation = np.mean(translations, axis=0)
+
+        # Define a threshold for acceptable distance from the mean
+        threshold = 0.01  # Adjust this as needed
+
+        # Calculate distances of each translation from the average
+        distances = np.linalg.norm(translations - avg_translation, axis=1)
+
+        # Filter poses within the threshold
+        filtered_indices = distances < threshold
+        filtered_poses = [pose_measurements[i] for i in range(len(pose_measurements)) if filtered_indices[i]]
+
         
         avg_pose = np.eye(4)
         avg_pose[:3, :3] = avg_rotation
         avg_pose[:3, 3] = avg_translation
         # if avg_pose[1,3]<=0:
-        avg_pose[1,3] = avg_pose[1,3] -(0.03)*avg_pose[1,3]
+        print("y before: ", avg_pose[1,3]*100, " cm")
+        if avg_pose[1,3]<0:
+            avg_pose[1,3] = avg_pose[1,3] - (0.05)*avg_pose[1,3]
+        else:
+            avg_pose[1,3] = avg_pose[1,3] - (0.02)*avg_pose[1,3]
+        print("y after: ", avg_pose[1,3]*100, " cm")
+        if avg_pose[2,3]<0:
+            avg_pose[2,3]=0
         # else: 
             # avg_pose[1,3] = avg_pose[1,3] + max(-(0.04)*avg_pose[1,3], 0)
 
-        print("adjust is: ", -(0.04)*avg_pose[1,3])
+        print("adjust is: ", -(0.05)*avg_pose[1,3])
+
+        print(avg_pose[2,3])
 
         average_poses.append(avg_pose)
 
     return average_poses
-
 
 def locateAllCubes(camera):
     multiple_measurements = []
@@ -99,6 +153,19 @@ def redoRot(poseList, rot):
         poseList[i][:3,:3] = rot
     return poseList
 
+def invert_homogeneous_transform(T):
+    R = T[:3, :3]
+    t = T[:3, 3]
+
+    R_inv = R.T  # Transpose of the rotation matrix
+    t_inv = -R_inv @ t  # Apply the inverse rotation to the negative translation
+
+    T_inv = np.eye(4)
+    T_inv[:3, :3] = R_inv
+    T_inv[:3, 3] = t_inv
+    
+    return T_inv
+
 def solveA(robot, camera):
     start(robot)
     moveBase(robot, 30)
@@ -129,12 +196,12 @@ def solveB(robot, camera):
     pose_home = robot.fk(q0)
     curRot = pose_home[:3,:3]
 
-    moveBase(robot, 30)
+    moveBase(robot, 90)
     cubesList, aruco_pairs = locateAllCubes(camera)
-    moveBase(robot, -30)
+    moveBase(robot, -90)
     
     cubesA, cubesB = cubesList[0], cubesList[1]
-    cubesA = redoRot(cubesA, curRot) # because planar solution
+    cubesA = redoRot(cubesA, curRot) # because on plain
     cubesB = redoRot(cubesB, curRot)
     # print("A: ", cubesA)
     # print("B: ", cubesB)
@@ -153,29 +220,178 @@ def solveB(robot, camera):
         print("Invalid input, please answer with 'A' or 'B'.")
 
 
+
+def calcRotToBoard(homeRot, poses):
+    avg_rotation = np.mean([pose[:3, :3] for pose in poses], axis=0)
+    U, _, Vt = np.linalg.svd(avg_rotation)
+    R_board = U @ Vt
+    R_home = homeRot[:3, :3]
+    # R_board = poses[:3, :3]
+
+    # R_relative = R_board @ R_home.T 
+
+    euler_angles = rotationMatrixToEulerAngles(R_board)
+    rx, ry, rz = euler_angles  # Angles in radians
+    R_board = Rz(np.radians(-rz)) @ R_board
+    # print(f"Euler Angles for board: {euler_angles}, Rx : {rx}°, Ry : {ry}°, Rz (yaw): {rz}°")
+    R_board = Rz(np.radians(rz)) @ R_board # undo the rotation
+
+    # euler_angles = rotationMatrixToEulerAngles(R_board)
+    # rx, ry, rz = euler_angles  # Angles in radians
+    # print(f"Euler Angles for board: {euler_angles}, Rx : {rx}°, Ry : {ry}°, Rz (yaw): {rz}°")
+
+    euler_angles = rotationMatrixToEulerAngles(R_board)
+    rx, ry, _ = euler_angles  # Angles in radians
+
+    rx += 180
+    rx_comp = rx % 180
+
+    # ry += 180
+    # ry = ry % 180
+
+    # print(f"Euler Angles: {euler_angles}, Rx : {rx}°, Ry : {ry}°, Rz (yaw): {rz}°")
+
+    # Adjust Rx and Ry while preserving Rz
+    if rx > 0:
+        if rx > 11:
+            print("Adjusting Rx by +15°")
+            rx = np.radians(15)
+        elif rx > 4.5:
+            print("Adjusting Rx by +7°")
+            rx = np.radians(7)
+        else:
+            print("No adjustment for Rx")
+            rx = np.radians(0)
+    else:
+        if rx < -11:
+            print("Adjusting Rx by -15°")
+            rx = np.radians(-15)
+        elif rx < -4.5:
+            print("Adjusting Rx by -7°")
+            rx = np.radians(-7)
+        else:
+            print("No adjustment for Rx")
+            rx = np.radians(0)
+
+    if ry > 0:
+        if ry > 11:
+            print("Adjusting Ry by +15°")
+            ry = np.radians(15)
+        elif ry > 4.5:
+            print("Adjusting Ry by +7°")
+            ry = np.radians(7)
+        else:
+            print("No adjustment for Ry")
+            ry = 0
+    else:
+        if ry < -11:
+            print("Adjusting Ry by -15°")
+            ry = np.radians(-15)
+        elif ry < -4.5:
+            print("Adjusting Ry by -7°")
+            ry = np.radians(-7)
+        else:
+            print("No adjustment for Ry")
+            ry = 0
+
+    # print(ry, rx)
+    euler_angles = rotationMatrixToEulerAngles(R_board)
+    rx_board, ry_board, rz_board = euler_angles  # Angles in radians
+    # print(f"Euler Angles for for board after rx ry calc: {euler_angles}, Rx : {rx_board}°, Ry : {ry_board}°, Rz (yaw): {rz_board}°")
+    
+    R_adjusted = R_board @ Ry(ry) @ Rx(rx)
+
+    euler_angles = rotationMatrixToEulerAngles(R_adjusted)
+    rx, ry, rz = euler_angles
+    # print(f"Euler Angles for return angle: {euler_angles}, Rx : {rx}°, Ry : {ry}°, Rz (yaw): {rz}°")
+    
+    # return R_adjusted
+    return R_board
+
+
+
+def solveD(robot, camera):
+    start(robot)
+    q0 = robot.get_q()
+    pose_home = robot.fk(q0)
+    curRot = pose_home[:3,:3]
+
+    moveBase(robot, 90)
+    cubesList, aruco_pairs = locateAllCubes(camera)
+    moveBase(robot, -90)
+    
+    cubesA, cubesB = cubesList[0], cubesList[1]
+    rotA = calcRotToBoard(curRot, cubesA)
+    rotB = calcRotToBoard(curRot, cubesB)
+
+    # movePose = pose_home
+    # movePose[:3,:3] = rotA
+    # moveCubeOrHolePose(robot, movePose)
+    # return
+    cubesA = redoRot(cubesA, rotA) # because on plain
+    cubesB = redoRot(cubesB, rotB)
+    # print("A: ", cubesA)
+    # print("B: ", cubesB)
+    answer = input(f"Cubes are located on board A: {aruco_pairs[0]['ids']} or B: {aruco_pairs[1]['ids']}").lower()
+    # print(cubesA)
+    # print()
+    # print(cubesB)
+
+    if answer == "a":
+        print("You chose A.")
+        moveCubesToHolesTilted(robot, cubesA, cubesB)
+    elif answer == "b":
+        print("You chose B.")
+        moveCubesToHolesTilted(robot, cubesB, cubesA)
+    else:
+        print("Invalid input, please answer with 'A' or 'B'.")
+
+def moveCubesToHolesTilted(robot, cubesPoses, holesPoses):
+    q = robot.get_q()
+    homePose = robot.fk(q)
+
+    # avgz_cubes = max(sum(mat[2, 3] for mat in cubesPoses)/len(cubesPoses) + 0.055, 0.065)
+    # avgz_holes = max(sum(mat[2, 3] for mat in holesPoses)/len(holesPoses) + 0.07, 0.07)
+    # print("avgz: ", avgz_cubes, avgz_holes)
+
+    for i, (cubePose, holePose) in enumerate(zip(cubesPoses, holesPoses)):
+        gripperOpen(robot)
+        cubePose[2,3] = cubePose[2,3]  + 0.06
+        cubePose[0,3] += 0.01
+        print("x cube pose: ", cubePose[0, 3]*100, " cm", ", y cube pose: ", cubePose[1,3]*100, " cm")
+        linMoveCubeOrHole(robot, cubePose, pick=True)
+        moveCubeOrHolePose(robot, homePose)
+        holePose[2,3] = holePose[2,3] + 0.06
+        cubePose[0,3] += 0.01
+        linMoveCubeOrHole(robot, holePose, pick=False)
+        print("x hole pose: ", holePose[0, 3]*100, " cm", ", y hole pose: ", holePose[1,3]*100, " cm")
+        moveCubeOrHolePose(robot, homePose)
+
 def moveCubesToHoles(robot, cubesPoses, holesPoses):
     q = robot.get_q()
     homePose = robot.fk(q)
 
-    avgz_cubes = sum(mat[2, 3] for mat in cubesPoses)/len(cubesPoses) + 0.055
-    avgz_holes = sum(mat[2, 3] for mat in holesPoses)/len(holesPoses) + 0.06
+    avgz_cubes = max(sum(mat[2, 3] for mat in cubesPoses)/len(cubesPoses) + 0.055, 0.065)
+    avgz_holes = max(sum(mat[2, 3] for mat in holesPoses)/len(holesPoses) + 0.07, 0.07)
     print("avgz: ", avgz_cubes, avgz_holes)
 
     for i, (cubePose, holePose) in enumerate(zip(cubesPoses, holesPoses)):
         gripperOpen(robot)
         cubePose[2,3] = avgz_cubes  #TEST
+        print("x cube pose: ", cubePose[0, 3]*100, " cm", ", y cube pose: ", cubePose[1,3]*100, " cm")
         linMoveCubeOrHole(robot, cubePose, pick=True)
         moveCubeOrHolePose(robot, homePose)
         holePose[2,3] = avgz_holes 
         linMoveCubeOrHole(robot, holePose, pick=False)
+        print("x hole pose: ", holePose[0, 3]*100, " cm", ", y hole pose: ", holePose[1,3]*100, " cm")
         moveCubeOrHolePose(robot, homePose)
-
 
 def linMoveCubeOrHole(robot, cubePose, pick):
 
     listOfPoses = []
-    start_above = 0.03
-    step = 0.006
+    start_above = 0.05
+    # step = 0.006
+    step = 0.01
     n = int(start_above/step)
     z_values = np.linspace(start_above, step, n)
     curOff = np.array([[0, 0, z] for z in z_values])
@@ -203,7 +419,6 @@ def linMoveCubeOrHole(robot, cubePose, pick):
     for pose in listOfPoses:
         moveCubeOrHolePose(robot, pose)
     
-
 def moveCubeOrHolePose(robot, pose):
     best_q = validIkForCubesOrHoles(robot, pose)
     if best_q is None:
@@ -235,31 +450,28 @@ def test(robot):
     robot.move_to_q(best_q)
     robot.wait_for_motion_stop()
     
-
-
-
 def validIkForCubesOrHoles(robot, pose):
     q0 = robot.get_q()
-    # Ry = np.array([[np.cos(np.pi/2), 0, np.sin(np.pi/2)],
-    #                 [0, 1, 0],
-    #                 [-np.sin(np.pi/2), 0, np.cos(np.pi/2)]])
-    # Rx = np.array([[1, 0, 0],
-    #             [0, np.cos(np.pi/2), -np.sin(np.pi/2)],
-    #             [0, np.sin(np.pi/2), np.cos(np.pi/2)]])
+    Ry = np.array([[np.cos(np.pi/2), 0, np.sin(np.pi/2)],
+                    [0, 1, 0],
+                    [-np.sin(np.pi/2), 0, np.cos(np.pi/2)]])
+    Rx = np.array([[1, 0, 0],
+                [0, np.cos(np.pi/2), -np.sin(np.pi/2)],
+                [0, np.sin(np.pi/2), np.cos(np.pi/2)]])
     Rz = np.array([[np.cos(np.pi/2), -np.sin(np.pi/2), 0],
                     [np.sin(np.pi/2), np.cos(np.pi/2), 0],
                     [0, 0, 1]])
     valid_q_sol = []
     for i in range(4):
         R_pose = pose[:3,:3]
-        R_pose = R_pose @ Rz
+        R_pose = Rz @ R_pose
         pose[:3,:3] = R_pose
         # print(R_pose)
         possible_q_config = robot.ik(pose)
         valid_q_sol.extend(filterSolOutBounds(robot, possible_q_config))
         
 
-    valid_q_sol = filterSolOutBounds(robot, possible_q_config)
+    # valid_q_sol = filterSolOutBounds(robot, possible_q_config)
     best_q = None
     if len(valid_q_sol)>0:
         best_q = min(valid_q_sol, key=lambda q: np.linalg.norm(q - q0))
@@ -435,7 +647,8 @@ functions = {
     "gripperOpen": gripperOpen,
     "solveA": solveA,
     "solveB": solveB,
-    "test" : test, 
+    "solveD": solveD,
+    "test" : test,
 }
 
 def parse_and_execute(robot, camera, command):
@@ -470,7 +683,7 @@ def monitor_terminal(robot, camera):
 if __name__=="__main__":
     # root = os.getcwd()
     # img_dir = os.path.join(root, 'imgs')
-    # img_filename = os.path.join(img_dir, f"img0.png")
+    # img_filename = os.path.join(img_dir, f"img3-naklon.png")
     # img = cv.imread(img_filename)
     # cubes, _ = locateAllCubes(img)
     # print(cubes)
