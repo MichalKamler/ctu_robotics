@@ -304,9 +304,10 @@ def calcRotToBoard(homeRot, poses):
     euler_angles = rotationMatrixToEulerAngles(R_adjusted)
     rx, ry, rz = euler_angles
     # print(f"Euler Angles for return angle: {euler_angles}, Rx : {rx}°, Ry : {ry}°, Rz (yaw): {rz}°")
+    poses = redoRot(poses, R_board)
     
     # return R_adjusted
-    return R_board
+    return poses
 
 
 
@@ -321,15 +322,15 @@ def solveD(robot, camera):
     moveBase(robot, -90)
     
     cubesA, cubesB = cubesList[0], cubesList[1]
-    rotA = calcRotToBoard(curRot, cubesA)
-    rotB = calcRotToBoard(curRot, cubesB)
+    cubesA = calcRotToBoard(curRot, cubesA)
+    cubesB = calcRotToBoard(curRot, cubesB)
 
     # movePose = pose_home
     # movePose[:3,:3] = rotA
     # moveCubeOrHolePose(robot, movePose)
     # return
-    cubesA = redoRot(cubesA, rotA) # because on plain
-    cubesB = redoRot(cubesB, rotB)
+    # cubesA = redoRot(cubesA, rotA) # because on plain
+    # cubesB = redoRot(cubesB, rotB)
     # print("A: ", cubesA)
     # print("B: ", cubesB)
     answer = input(f"Cubes are located on board A: {aruco_pairs[0]['ids']} or B: {aruco_pairs[1]['ids']}").lower()
@@ -680,15 +681,58 @@ def monitor_terminal(robot, camera):
         user_input = input("Enter function name: ").strip()
         parse_and_execute(robot, camera, user_input)
 
+
+def locateAllCubesOnImg(img_orig):
+    multiple_measurements = []
+    # for i in range(10):
+    img, allT_base2marker, ids = arucoMarkersFinder(img_orig, camMatrix, distCoeff, 0.036)
+    multiple_measurements.append(allT_base2marker)
+        # showImg(img_orig)
+    # for i in range(len(multiple_measurements)):
+    #     print(len(multiple_measurements[i]))
+    multiple_measurements = [m for m in multiple_measurements if len(m) == 4]
+    # for i in range(len(multiple_measurements)):
+    #     print(len(multiple_measurements[i]))
+    allT_base2marker_avg = avgAllMeasurements(multiple_measurements)
+    print(allT_base2marker_avg)
+    cubesList = []
+    if len(ids)>0:
+        pairs = pairUpAruco(allT_base2marker_avg, ids)
+        for pair in pairs:
+            cubes = locateCenterOfCubes(pair)
+            img = drawFoundCubes(img_orig, camMatrix, distCoeff, cubes, T_base2cam)
+            cubesList.append(cubes)
+
+
+    if img is None:
+        print("Error: Could not load image.")
+    else:
+        cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
+        cv.resizeWindow("Image Window", 1200, 800)
+        cv.imshow("Image Window", img)
+        cv.waitKey(0)  
+        cv.destroyAllWindows()
+    return cubesList, pairs
+
+def showImg(img):
+    if img is None:
+        print("Error: Could not load image.")
+    else:
+        cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
+        cv.resizeWindow("Image Window", 1200, 800)
+        cv.imshow("Image Window", img)
+        cv.waitKey(0)  
+        cv.destroyAllWindows()
+
 if __name__=="__main__":
-    # root = os.getcwd()
-    # img_dir = os.path.join(root, 'imgs')
-    # img_filename = os.path.join(img_dir, f"img3-naklon.png")
-    # img = cv.imread(img_filename)
-    # cubes, _ = locateAllCubes(img)
+    root = os.getcwd()
+    img_dir = os.path.join(root, 'imgs')
+    img_filename = os.path.join(img_dir, f"img3-naklon.png")
+    img = cv.imread(img_filename)
+    cubes, _ = locateAllCubesOnImg(img)
     # print(cubes)
 
-    robot = CRS97()
-    robot.initialize() # performs soft home!!
-    camera = getCamera()
-    monitor_terminal(robot, camera)
+    # robot = CRS97()
+    # robot.initialize() # performs soft home!!
+    # camera = getCamera()
+    # monitor_terminal(robot, camera)

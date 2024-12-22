@@ -126,9 +126,9 @@ def arucoMarkersFinder(img, camera_matrix, dist_coeffs, aruco_side_size):
     allT_base2marker = []
 
     if ids is not None: 
-        img = cv.aruco.drawDetectedMarkers(img,corners,ids)
-        for i in range(len(ids)):
-            cv.putText(img, str(ids[i]), tuple(corners[i][0][0].astype(int)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2, cv.LINE_AA)
+        # img = cv.aruco.drawDetectedMarkers(img,corners,ids)
+        # for i in range(len(ids)):
+            # cv.putText(img, str(ids[i]), tuple(corners[i][0][0].astype(int)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2, cv.LINE_AA)
 
 
         for corner in corners: 
@@ -148,7 +148,27 @@ def arucoMarkersFinder(img, camera_matrix, dist_coeffs, aruco_side_size):
             allT_base2marker.append(T_base2marker)
 
             rvecs_transformed = cv.Rodrigues(R_camera2marker)
-            cv.drawFrameAxes(img, camera_matrix, dist_coeffs, rvecs_transformed[0], tvecs[0], aruco_side_size)
+            # cv.drawFrameAxes(img, camera_matrix, dist_coeffs, rvecs_transformed[0], tvecs[0], aruco_side_size)
+            cv.drawFrameAxes(img, camera_matrix, dist_coeffs, rvecs, tvecs, aruco_side_size)
+
+            # Define a point near the origin (3D point to project for text position)
+            text_3d_point = np.array([[aruco_side_size, 0, 0]], dtype=np.float32)  # Near the X-axis
+
+            # Project the 3D point to 2D
+            text_2d_point, _ = cv.projectPoints(text_3d_point, rvecs, tvecs, camera_matrix, dist_coeffs)
+
+            # Convert the projected point to integer pixel coordinates
+            text_x, text_y = text_2d_point.ravel().astype(int)
+
+            # Offset the x-coordinate by 50 pixels
+            text_x += 50
+            text = f"{T_base2marker[2, 3]*100:.2f} cm"
+            font = cv.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.7
+            color = (0, 0, 0)  
+            thickness = 2
+
+            cv.putText(img, text, (text_x, text_y), font, font_scale, color, thickness)
 
 
     return img, allT_base2marker, ids
@@ -234,6 +254,12 @@ def locateCenterOfCubes(pair):
     T_base2marker0 = pair['T'][0]
     T_base2marker1 = pair['T'][1]
 
+    normal_vector = np.cross(
+        T_base2marker0[:3, 2],
+        T_base2marker1[:3, 3] - T_base2marker0[:3, 3])
+    normal_vector = normal_vector / np.linalg.norm(normal_vector) 
+
+    a, b, c = normal_vector
     cubePosSE3 = []
     if T_base2marker0[0,3]>T_base2marker1[0,3]:
         R_grip = Rz(0)
@@ -245,12 +271,29 @@ def locateCenterOfCubes(pair):
     x0, y0, z0 = xyz0[0], xyz0[1], xyz0[2]
     x1, y1, z1 = xyz1[0], xyz1[1], xyz1[2]
     # R_base2board = averageRotation(T_base2marker0[:3,:3], T_base2marker1[:3,:3])
+    # print(id0, xyz0, id1, xyz1)
+    # print(normal_vector)
+    print(xyz0)
     R_base2board = T_base2marker0[:3,:3]
     const_R = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2) @ rotXYZ(0,0,np.pi/2) @ R_grip
     for i in range(1, len(data), 1):
         t_offset =np.array(xyz0) + (R_base2board @ np.array([+0., data[i][0]/1000, data[i][1]/1000])).flatten() #0.1 so it is above the playground for now and I do not break anything
+        # Horizontal distance from t_offset to xyz0
+        # print(t_offset)
+        x, y = t_offset[0], t_offset[1]
+        # dist_to_xyz0 = np.linalg.norm(t_offset[:2] - np.array([x0, y0]))
+
+        # # Total horizontal distance between xyz0 and xyz1
+        # total_dist = np.linalg.norm(np.array([x1, y1]) - np.array([x0, y0]))
+
+        # # Interpolate z-coordinate
+        # t_offset[2] = z0 + (z1 - z0) * (dist_to_xyz0 / total_dist)
+
+        t_offset[2] = z0 - (a * (x - x0) + b * (y - y0)) / c
+        
+        # t_offset[2] = z0 + (z1-z0) * np.sqrt((t_offset[0]-x0)**2+(t_offset[1]-y0)**2)/np.sqrt((x1-x0)**2+(y1-y0)**2)#stupid but works
         T_base2cube = np.eye(4)
-        T_base2cube[:3, :3] = R_base2board @ const_R
+        # T_base2cube[:3, :3] = R_base2board @ const_R
         T_base2cube[:3, 3] = t_offset
         print(id0, id1, t_offset)
         cubePosSE3.append(T_base2cube)
@@ -297,6 +340,25 @@ def drawFoundCubes(img, camera_matrix, dist_coeffs, cubes, T_base2cam):
         tvecs = T_cam2cube[:3,3]
         # break
         cv.drawFrameAxes(img, camera_matrix, dist_coeffs, rvecs, tvecs, 0.04)
+
+        # Define a point near the origin (3D point to project for text position)
+        text_3d_point = np.array([[0.04, 0, 0]], dtype=np.float32)  # Near the X-axis
+
+        # Project the 3D point to 2D
+        text_2d_point, _ = cv.projectPoints(text_3d_point, rvecs, tvecs, camera_matrix, dist_coeffs)
+
+        # Convert the projected point to integer pixel coordinates
+        text_x, text_y = text_2d_point.ravel().astype(int)
+
+        # Offset the x-coordinate by 50 pixels
+        text_x += 50
+        text = f"{T_base2cube[2, 3]*100:.2f} cm"
+        font = cv.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.7
+        color = (0, 0, 0)  
+        thickness = 2
+
+        cv.putText(img, text, (text_x, text_y), font, font_scale, color, thickness)
         
 
 
