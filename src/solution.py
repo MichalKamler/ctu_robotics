@@ -104,18 +104,21 @@ def avgAllMeasurements(multiple_measurements):
         # if avg_pose[1,3]<=0:
         print("y before: ", avg_pose[1,3]*100, " cm")
         if avg_pose[1,3]<0:
-            avg_pose[1,3] = avg_pose[1,3] - (0.05)*avg_pose[1,3]
+            avg_pose[1,3] = avg_pose[1,3] - (0.03)*avg_pose[1,3]
         else:
-            avg_pose[1,3] = avg_pose[1,3] - (0.02)*avg_pose[1,3]
+            avg_pose[1,3] = avg_pose[1,3] - (0.03)*avg_pose[1,3]
         print("y after: ", avg_pose[1,3]*100, " cm")
+        print("x before: ", avg_pose[0,3])
+        avg_pose[0,3] = avg_pose[0,3] - (0.002)*avg_pose[0,3]
+        print("x after: ", avg_pose[0,3])
         if avg_pose[2,3]<0:
             avg_pose[2,3]=0
         # else: 
             # avg_pose[1,3] = avg_pose[1,3] + max(-(0.04)*avg_pose[1,3], 0)
 
-        print("adjust is: ", -(0.05)*avg_pose[1,3])
+        # print("adjust is: ", -(0.05)*avg_pose[1,3])
 
-        print(avg_pose[2,3])
+        # print(avg_pose[2,3])
 
         average_poses.append(avg_pose)
 
@@ -149,7 +152,15 @@ def locateAllCubes(camera):
     return cubesList, pairs
     
 def redoRot(poseList, rot):
+    # print("rot to euler home pos: ", rotationMatrixToEulerAngles(rot))
+    euler_home = rotationMatrixToEulerAngles(rot)
+    rz_home = euler_home[2]
+    euler_cube = rotationMatrixToEulerAngles(poseList[0][:3,:3])
+    rz_cube = euler_cube[2]
+    rot = Rz(np.radians(rz_cube-rz_home)) @ rot
+
     for i in range(len(poseList)):
+        # print("rot to euler pose of cube: ", rotationMatrixToEulerAngles(poseList[i][:3,:3]))
         poseList[i][:3,:3] = rot
     return poseList
 
@@ -218,6 +229,7 @@ def solveB(robot, camera):
         moveCubesToHoles(robot, cubesB, cubesA)
     else:
         print("Invalid input, please answer with 'A' or 'B'.")
+    moveCubeOrHolePose(robot, pose_home)
 
 
 
@@ -225,7 +237,8 @@ def calcRotToBoard(homeRot, poses):
     avg_rotation = np.mean([pose[:3, :3] for pose in poses], axis=0)
     U, _, Vt = np.linalg.svd(avg_rotation)
     R_board = U @ Vt
-    R_home = homeRot[:3, :3]
+    R_home = homeRot
+
     # R_board = poses[:3, :3]
 
     # R_relative = R_board @ R_home.T 
@@ -299,12 +312,17 @@ def calcRotToBoard(homeRot, poses):
     rx_board, ry_board, rz_board = euler_angles  # Angles in radians
     # print(f"Euler Angles for for board after rx ry calc: {euler_angles}, Rx : {rx_board}°, Ry : {ry_board}°, Rz (yaw): {rz_board}°")
     
-    R_adjusted = R_board @ Ry(ry) @ Rx(rx)
+    # R_adjusted = R_home @ Ry(ry) @ Rx(rx)
+    R_adjusted = Rz(np.radians(rz)) @ R_home
+    R_adjusted = Ry(ry) @ R_adjusted
+    R_adjusted = Rx(rx) @ R_adjusted
 
     euler_angles = rotationMatrixToEulerAngles(R_adjusted)
     rx, ry, rz = euler_angles
     # print(f"Euler Angles for return angle: {euler_angles}, Rx : {rx}°, Ry : {ry}°, Rz (yaw): {rz}°")
-    poses = redoRot(poses, R_board)
+    poses = redoRot(poses, R_adjusted)
+    
+
     
     # return R_adjusted
     return poses
@@ -316,18 +334,24 @@ def solveD(robot, camera):
     q0 = robot.get_q()
     pose_home = robot.fk(q0)
     curRot = pose_home[:3,:3]
+    # print(curRot)
 
     moveBase(robot, 90)
     cubesList, aruco_pairs = locateAllCubes(camera)
     moveBase(robot, -90)
+
+    # print(aruco_pairs)
     
     cubesA, cubesB = cubesList[0], cubesList[1]
-    cubesA = calcRotToBoard(curRot, cubesA)
-    cubesB = calcRotToBoard(curRot, cubesB)
+    # print(cubesA[0])
+    # cubesA = calcRotToBoard(curRot, cubesA)
+    # print(cubesA[0])
+    # cubesB = calcRotToBoard(curRot, cubesB)
 
-    # movePose = pose_home
-    # movePose[:3,:3] = rotA
-    # moveCubeOrHolePose(robot, movePose)
+    movePose = pose_home
+    movePose[:3,:3] = cubesA[0][:3,:3]
+    print(movePose)
+    moveCubeOrHolePose(robot, movePose)
     # return
     # cubesA = redoRot(cubesA, rotA) # because on plain
     # cubesB = redoRot(cubesB, rotB)
@@ -373,7 +397,7 @@ def moveCubesToHoles(robot, cubesPoses, holesPoses):
     homePose = robot.fk(q)
 
     avgz_cubes = max(sum(mat[2, 3] for mat in cubesPoses)/len(cubesPoses) + 0.055, 0.065)
-    avgz_holes = max(sum(mat[2, 3] for mat in holesPoses)/len(holesPoses) + 0.07, 0.07)
+    avgz_holes = max(sum(mat[2, 3] for mat in holesPoses)/len(holesPoses) + 0.06, 0.06)
     print("avgz: ", avgz_cubes, avgz_holes)
 
     for i, (cubePose, holePose) in enumerate(zip(cubesPoses, holesPoses)):
@@ -381,18 +405,18 @@ def moveCubesToHoles(robot, cubesPoses, holesPoses):
         cubePose[2,3] = avgz_cubes  #TEST
         print("x cube pose: ", cubePose[0, 3]*100, " cm", ", y cube pose: ", cubePose[1,3]*100, " cm")
         linMoveCubeOrHole(robot, cubePose, pick=True)
-        moveCubeOrHolePose(robot, homePose)
+        # moveCubeOrHolePose(robot, homePose)
         holePose[2,3] = avgz_holes 
         linMoveCubeOrHole(robot, holePose, pick=False)
         print("x hole pose: ", holePose[0, 3]*100, " cm", ", y hole pose: ", holePose[1,3]*100, " cm")
-        moveCubeOrHolePose(robot, homePose)
+        # moveCubeOrHolePose(robot, homePose)
 
 def linMoveCubeOrHole(robot, cubePose, pick):
 
     listOfPoses = []
-    start_above = 0.05
+    start_above = 0.1
     # step = 0.006
-    step = 0.01
+    step = 0.1
     n = int(start_above/step)
     z_values = np.linspace(start_above, step, n)
     curOff = np.array([[0, 0, z] for z in z_values])
@@ -694,7 +718,7 @@ def locateAllCubesOnImg(img_orig):
     # for i in range(len(multiple_measurements)):
     #     print(len(multiple_measurements[i]))
     allT_base2marker_avg = avgAllMeasurements(multiple_measurements)
-    print(allT_base2marker_avg)
+    # print(allT_base2marker_avg)
     cubesList = []
     if len(ids)>0:
         pairs = pairUpAruco(allT_base2marker_avg, ids)
@@ -725,14 +749,14 @@ def showImg(img):
         cv.destroyAllWindows()
 
 if __name__=="__main__":
-    root = os.getcwd()
-    img_dir = os.path.join(root, 'imgs')
-    img_filename = os.path.join(img_dir, f"img3-naklon.png")
-    img = cv.imread(img_filename)
-    cubes, _ = locateAllCubesOnImg(img)
+    # root = os.getcwd()
+    # img_dir = os.path.join(root, 'imgs')
+    # img_filename = os.path.join(img_dir, f"img3-naklon.png")
+    # img = cv.imread(img_filename)
+    # cubes, _ = locateAllCubesOnImg(img)
     # print(cubes)
 
-    # robot = CRS97()
-    # robot.initialize() # performs soft home!!
-    # camera = getCamera()
-    # monitor_terminal(robot, camera)
+    robot = CRS97()
+    robot.initialize() # performs soft home!!
+    camera = getCamera()
+    monitor_terminal(robot, camera)

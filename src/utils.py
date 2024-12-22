@@ -126,9 +126,9 @@ def arucoMarkersFinder(img, camera_matrix, dist_coeffs, aruco_side_size):
     allT_base2marker = []
 
     if ids is not None: 
-        # img = cv.aruco.drawDetectedMarkers(img,corners,ids)
-        # for i in range(len(ids)):
-            # cv.putText(img, str(ids[i]), tuple(corners[i][0][0].astype(int)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2, cv.LINE_AA)
+        img = cv.aruco.drawDetectedMarkers(img,corners,ids)
+        for i in range(len(ids)):
+            cv.putText(img, str(ids[i]), tuple(corners[i][0][0].astype(int)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2, cv.LINE_AA)
 
 
         for corner in corners: 
@@ -254,6 +254,8 @@ def locateCenterOfCubes(pair):
     T_base2marker0 = pair['T'][0]
     T_base2marker1 = pair['T'][1]
 
+    print(T_base2marker0)
+
     normal_vector = np.cross(
         T_base2marker0[:3, 2],
         T_base2marker1[:3, 3] - T_base2marker0[:3, 3])
@@ -273,7 +275,7 @@ def locateCenterOfCubes(pair):
     # R_base2board = averageRotation(T_base2marker0[:3,:3], T_base2marker1[:3,:3])
     # print(id0, xyz0, id1, xyz1)
     # print(normal_vector)
-    print(xyz0)
+    # print(xyz0)
     R_base2board = T_base2marker0[:3,:3]
     const_R = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2) @ rotXYZ(0,0,np.pi/2) @ R_grip
     for i in range(1, len(data), 1):
@@ -290,12 +292,13 @@ def locateCenterOfCubes(pair):
         # t_offset[2] = z0 + (z1 - z0) * (dist_to_xyz0 / total_dist)
 
         t_offset[2] = z0 - (a * (x - x0) + b * (y - y0)) / c
+        t_offset[2] = max(min(t_offset[2], max(z0, z1)), min(z0, z1))
         
         # t_offset[2] = z0 + (z1-z0) * np.sqrt((t_offset[0]-x0)**2+(t_offset[1]-y0)**2)/np.sqrt((x1-x0)**2+(y1-y0)**2)#stupid but works
         T_base2cube = np.eye(4)
-        # T_base2cube[:3, :3] = R_base2board @ const_R
+        T_base2cube[:3, :3] = R_base2board @ const_R
         T_base2cube[:3, 3] = t_offset
-        print(id0, id1, t_offset)
+        # print(id0, id1, t_offset)
         cubePosSE3.append(T_base2cube)
     # print(T_base2marker0)
     # print(cubePosSE3[0])
