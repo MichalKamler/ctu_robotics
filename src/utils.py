@@ -254,7 +254,7 @@ def locateCenterOfCubes(pair):
     T_base2marker0 = pair['T'][0]
     T_base2marker1 = pair['T'][1]
 
-    print(T_base2marker0)
+    # print(T_base2marker0)
 
     normal_vector = np.cross(
         T_base2marker0[:3, 2],
@@ -269,6 +269,7 @@ def locateCenterOfCubes(pair):
         R_grip = Rz(np.pi)
 
     xyz0 = T_base2marker0[:3, 3]
+    print(T_base2marker0)
     xyz1 = T_base2marker1[:3, 3]
     x0, y0, z0 = xyz0[0], xyz0[1], xyz0[2]
     x1, y1, z1 = xyz1[0], xyz1[1], xyz1[2]
@@ -278,11 +279,45 @@ def locateCenterOfCubes(pair):
     # print(xyz0)
     R_base2board = T_base2marker0[:3,:3]
     const_R = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2) @ rotXYZ(0,0,np.pi/2) @ R_grip
+
+    sy = -R_base2board[2, 0]
+    sy = np.clip(sy, -1, 1)
+    ry = np.arcsin(sy)  # rotation about y-axis
+    rx = np.arctan2(R_base2board[2, 1], R_base2board[2, 2])  # rotation about x-axis
+    rz = np.arctan2(R_base2board[1, 0], R_base2board[0, 0])  # rotation about z-axis
+    print("important!!!!: ", np.degrees(rx), np.degrees(ry), np.degrees(rz))
+
+    yaw = np.degrees(rz)
+    offset_effect = (yaw + 360)%45
+    offset_effect = (45-offset_effect)/45
+
     for i in range(1, len(data), 1):
         t_offset =np.array(xyz0) + (R_base2board @ np.array([+0., data[i][0]/1000, data[i][1]/1000])).flatten() #0.1 so it is above the playground for now and I do not break anything
         # Horizontal distance from t_offset to xyz0
         # print(t_offset)
+
+        print("y before: ", t_offset[1]*100, " cm")
+        if t_offset[1]<0:
+            t_offset[1] = t_offset[1] + (0.05)*t_offset[1]
+            if t_offset[1]<-0.2:
+                print("brikulky delam ted")
+                t_offset[1]+=0.005
+        else:
+            # t_offset[1] = t_offset[1] - (0.075)*t_offset[1]
+            off = (-t_offset[1]*(1/14)+(33.8/21))/100
+            # t_offset[1] = t_offset[1] - 0.012
+            t_offset[1] = t_offset[1] - off
+        # t_offset[1] = t_offset[1] - t_offset[1] * (14/440) + 13/2000
+        # t_offset[1] = t_offset[1] - 0.01
+        print("y after: ", t_offset[1]*100, " cm")
+
+        # print("x before: ", t_offset[0])
+        t_offset[0] = t_offset[0] - (0.006)*t_offset[0]
+        # print("x after: ", t_offset[0])
+
+
         x, y = t_offset[0], t_offset[1]
+
         # dist_to_xyz0 = np.linalg.norm(t_offset[:2] - np.array([x0, y0]))
 
         # # Total horizontal distance between xyz0 and xyz1
@@ -292,12 +327,23 @@ def locateCenterOfCubes(pair):
         # t_offset[2] = z0 + (z1 - z0) * (dist_to_xyz0 / total_dist)
 
         t_offset[2] = z0 - (a * (x - x0) + b * (y - y0)) / c
-        t_offset[2] = max(min(t_offset[2], max(z0, z1)), min(z0, z1))
+
+        # t_offset[2] = max(min(t_offset[2], max(z0, z1)), min(z0, z1))
+
+        lower_bound = min(z0, z1)
+        upper_bound = max(z0, z1)
+
+        if t_offset[2] < lower_bound:
+            t_offset[2] = lower_bound
+        elif t_offset[2] > upper_bound:
+            t_offset[2] = upper_bound
         
         # t_offset[2] = z0 + (z1-z0) * np.sqrt((t_offset[0]-x0)**2+(t_offset[1]-y0)**2)/np.sqrt((x1-x0)**2+(y1-y0)**2)#stupid but works
         T_base2cube = np.eye(4)
         T_base2cube[:3, :3] = R_base2board @ const_R
         T_base2cube[:3, 3] = t_offset
+        if i == 0:
+            print(t_offset)
         # print(id0, id1, t_offset)
         cubePosSE3.append(T_base2cube)
     # print(T_base2marker0)

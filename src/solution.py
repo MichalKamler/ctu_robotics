@@ -88,7 +88,7 @@ def avgAllMeasurements(multiple_measurements):
         avg_translation = np.mean(translations, axis=0)
 
         # Define a threshold for acceptable distance from the mean
-        threshold = 0.01  # Adjust this as needed
+        threshold = 0.02  # Adjust this as needed
 
         # Calculate distances of each translation from the average
         distances = np.linalg.norm(translations - avg_translation, axis=1)
@@ -101,20 +101,21 @@ def avgAllMeasurements(multiple_measurements):
         avg_pose = np.eye(4)
         avg_pose[:3, :3] = avg_rotation
         avg_pose[:3, 3] = avg_translation
-        # if avg_pose[1,3]<=0:
-        print("y before: ", avg_pose[1,3]*100, " cm")
-        if avg_pose[1,3]<0:
-            avg_pose[1,3] = avg_pose[1,3] - (0.03)*avg_pose[1,3]
-        else:
-            avg_pose[1,3] = avg_pose[1,3] - (0.03)*avg_pose[1,3]
-        print("y after: ", avg_pose[1,3]*100, " cm")
-        print("x before: ", avg_pose[0,3])
-        avg_pose[0,3] = avg_pose[0,3] - (0.002)*avg_pose[0,3]
-        print("x after: ", avg_pose[0,3])
+        # # if avg_pose[1,3]<=0:
+        # print("y before: ", avg_pose[1,3]*100, " cm")
+        # if avg_pose[1,3]<0:
+        #     avg_pose[1,3] = avg_pose[1,3] + (0.1)*avg_pose[1,3]
+        # else:
+        #     avg_pose[1,3] = avg_pose[1,3] - (0.05)*avg_pose[1,3]
+        # print("y after: ", avg_pose[1,3]*100, " cm")
+
+        # print("x before: ", avg_pose[0,3])
+        # avg_pose[0,3] = avg_pose[0,3] - (0.002)*avg_pose[0,3]
+        # print("x after: ", avg_pose[0,3])
         if avg_pose[2,3]<0:
             avg_pose[2,3]=0
-        # else: 
-            # avg_pose[1,3] = avg_pose[1,3] + max(-(0.04)*avg_pose[1,3], 0)
+        else: 
+            avg_pose[1,3] = avg_pose[1,3] + max(-(0.04)*avg_pose[1,3], 0)
 
         # print("adjust is: ", -(0.05)*avg_pose[1,3])
 
@@ -130,11 +131,11 @@ def locateAllCubes(camera):
         img = waitForImg(camera)
         img, allT_base2marker, ids = arucoMarkersFinder(img, camMatrix, distCoeff, 0.036)
         multiple_measurements.append(allT_base2marker)
-    allT_base2marker_avg = avgAllMeasurements(multiple_measurements)
+    allT_base2marker_avg = avgAllMeasurements(multiple_measurements) # NOT USING NOW
 
     cubesList = []
     if len(ids)>0:
-        pairs = pairUpAruco(allT_base2marker_avg, ids)
+        pairs = pairUpAruco(allT_base2marker, ids)
         for pair in pairs:
             cubes = locateCenterOfCubes(pair)
             img = drawFoundCubes(img, camMatrix, distCoeff, cubes, T_base2cam)
@@ -179,12 +180,18 @@ def invert_homogeneous_transform(T):
 
 def solveA(robot, camera):
     start(robot)
-    moveBase(robot, 30)
+    q0 = robot.get_q()
+    pose_home = robot.fk(q0)
+    curRot = pose_home[:3,:3]
+
+    moveBase(robot, 90)
     cubesList, _ = locateAllCubes(camera)
-    moveBase(robot, -30)
+    moveBase(robot, -90)
+
     cubes = cubesList[0]
-    q = robot.get_q()
-    homePose = robot.fk(q)
+
+
+    cubes = redoRot(cubes, curRot) # because on plain
     # print(cubes)
     # print()
     avgz = sum(mat[2, 3] for mat in cubes)/len(cubes)
@@ -193,11 +200,11 @@ def solveA(robot, camera):
         gripperOpen(robot)
         cubePose[2,3] = avgz + 0.06 #TEST
         linMoveCubeOrHole(robot, cubePose, pick=True)
-        moveCubeOrHolePose(robot, homePose)
+        moveCubeOrHolePose(robot, pose_home)
         moveBase(robot, 30+i*5)
         moveGripperXYZ(robot, 0., 0., -0.3)
         gripperOpen(robot)
-        moveCubeOrHolePose(robot, homePose)
+        moveCubeOrHolePose(robot, pose_home)
 
     # moveToPose(robot, cubePose)
 
@@ -206,26 +213,47 @@ def solveB(robot, camera):
     q0 = robot.get_q()
     pose_home = robot.fk(q0)
     curRot = pose_home[:3,:3]
+    time.sleep(0.5)
 
     moveBase(robot, 90)
-    cubesList, aruco_pairs = locateAllCubes(camera)
+    while True:
+        img = waitForImg(camera)
+        filename = "test_at_home.jpg"
+        success = cv.imwrite(filename, img)
+
+        if success:
+            print(f"Image successfully saved as {filename}")
+        else:
+            print("Failed to save the image")
+
+        cubesList, aruco_pairs = locateAllCubes(camera)
+        user_input = input("Enter 'ok' to stop or press Enter to continue: ").strip().lower()
+        if user_input == "ok":
+            print("Exiting loop.")
+            break
+        
+
     moveBase(robot, -90)
     
     cubesA, cubesB = cubesList[0], cubesList[1]
     cubesA = redoRot(cubesA, curRot) # because on plain
     cubesB = redoRot(cubesB, curRot)
 
+    print(cubesA)
+    print()
+    print(cubesB)
+
     img = waitForImg(camera)
     img = drawFoundCubes(img, camMatrix, distCoeff, cubesA, T_base2cam)
     
-    if img is None:
-        print("Error: Could not load image.")
-    else:
-        cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
-        cv.resizeWindow("Image Window", 1200, 800)
-        cv.imshow("Image Window", img)
-        cv.waitKey(0)  
-        cv.destroyAllWindows()
+    # if img is None:
+    #     print("Error: Could not load image.")
+    # else:
+    #     cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
+    #     cv.resizeWindow("Image Window", 1200, 800)
+    #     cv.imshow("Image Window", img)
+    #     cv.waitKey(0)  
+    #     cv.destroyAllWindows()
     
     # print("A: ", cubesA)
     # print("B: ", cubesB)
@@ -520,7 +548,8 @@ def validIkForCubesOrHoles(robot, pose):
 def printPose(robot):
     q = robot.get_q()
     pose = robot.fk(q)
-    print(pose)
+    pose_tr = pose[:3, 3]
+    print(pose_tr)
 
 def fitAngleWithinLimits(a1, a2, a_lower_lim, a_upper_lim):
     a = a1 + a2
@@ -763,6 +792,7 @@ def showImg(img):
 
 if __name__=="__main__":
     print(camMatrix, distCoeff)
+    print(T_base2cam)
     # root = os.getcwd()
     # img_dir = os.path.join(root, 'imgs')
     # img_filename = os.path.join(img_dir, f"img3-naklon.png")
