@@ -115,7 +115,8 @@ def arucoMarkersFinder(img, camera_matrix, dist_coeffs, aruco_side_size):
     detector = cv.aruco.ArucoDetector(aruco_dict,aruco_params)
 
     R_base2cam, t_base2cam = loadRT('npz/R_t_base2cam.npz')
-
+    
+    # t_base2cam[1] += -0.009 
     T_base2cam = np.eye(4)
     T_base2cam[:3, :3] = R_base2cam
     T_base2cam[:3, 3] = t_base2cam.flatten()
@@ -278,7 +279,7 @@ def locateCenterOfCubes(pair):
     # print(normal_vector)
     # print(xyz0)
     R_base2board = T_base2marker0[:3,:3]
-    # const_R = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2) @ rotXYZ(0,0,np.pi/2) @ R_grip
+    const_R = rotXYZ(np.pi/2, -np.pi/2, -np.pi/2) @ rotXYZ(0,0,np.pi/2) @ R_grip
 
     # sy = -R_base2board[2, 0]
     # sy = np.clip(sy, -1, 1)
@@ -292,59 +293,59 @@ def locateCenterOfCubes(pair):
     # offset_effect = (45-offset_effect)/45
 
     for i in range(1, len(data), 1):
-        # t_offset =np.array(xyz0) + (R_base2board @ np.array([+0., data[i][0]/1000, data[i][1]/1000])).flatten() #0.1 so it is above the playground for now and I do not break anything
-        # # Horizontal distance from t_offset to xyz0
-        # # print(t_offset)
+        t_offset =np.array(xyz0) + (R_base2board @ np.array([+0., data[i][0]/1000, data[i][1]/1000])).flatten() #0.1 so it is above the playground for now and I do not break anything
+        # Horizontal distance from t_offset to xyz0
+        # print(t_offset)
 
-        # print("y before: ", t_offset[1]*100, " cm")
-        # if t_offset[1]<0:
-        #     t_offset[1] = t_offset[1] + (0.05)*t_offset[1]
-        #     if t_offset[1]<-0.2:
-        #         print("brikulky delam ted")
-        #         t_offset[1]+=0.005
-        # else:
-        #     # t_offset[1] = t_offset[1] - (0.075)*t_offset[1]
-        #     off = (-t_offset[1]*(1/14)+(33.8/21))/100
-        #     # t_offset[1] = t_offset[1] - 0.012
-        #     t_offset[1] = t_offset[1] - off
-        # # t_offset[1] = t_offset[1] - t_offset[1] * (14/440) + 13/2000
-        # # t_offset[1] = t_offset[1] - 0.01
-        # print("y after: ", t_offset[1]*100, " cm")
+        print("y before: ", t_offset[1]*100, " cm")
+        if t_offset[1]<0:
+            t_offset[1] = t_offset[1] + (0.05)*t_offset[1]
+            if t_offset[1]<-0.2:
+                print("brikulky delam ted")
+                t_offset[1]+=0.005
+        else:
+            # t_offset[1] = t_offset[1] - (0.075)*t_offset[1]
+            off = (-t_offset[1]*(1/14)+(33.8/21))/100
+            # t_offset[1] = t_offset[1] - 0.012
+            t_offset[1] = t_offset[1] - off
+        # t_offset[1] = t_offset[1] - t_offset[1] * (14/440) + 13/2000
+        # t_offset[1] = t_offset[1] - 0.01
+        print("y after: ", t_offset[1]*100, " cm")
 
-        # # print("x before: ", t_offset[0])
-        # t_offset[0] = t_offset[0] - (0.006)*t_offset[0]
-        # # print("x after: ", t_offset[0])
+        print("x before: ", t_offset[0])
+        t_offset[0] = t_offset[0] - (0.006)*t_offset[0]
+        print("x after: ", t_offset[0])
 
 
-        # x, y = t_offset[0], t_offset[1]
+        x, y = t_offset[0], t_offset[1]
 
-        # # dist_to_xyz0 = np.linalg.norm(t_offset[:2] - np.array([x0, y0]))
+        # dist_to_xyz0 = np.linalg.norm(t_offset[:2] - np.array([x0, y0]))
 
-        # # # Total horizontal distance between xyz0 and xyz1
-        # # total_dist = np.linalg.norm(np.array([x1, y1]) - np.array([x0, y0]))
+        # # Total horizontal distance between xyz0 and xyz1
+        # total_dist = np.linalg.norm(np.array([x1, y1]) - np.array([x0, y0]))
 
-        # # # Interpolate z-coordinate
-        # # t_offset[2] = z0 + (z1 - z0) * (dist_to_xyz0 / total_dist)
+        # # Interpolate z-coordinate
+        # t_offset[2] = z0 + (z1 - z0) * (dist_to_xyz0 / total_dist)
 
-        # t_offset[2] = z0 - (a * (x - x0) + b * (y - y0)) / c
+        t_offset[2] = z0 - (a * (x - x0) + b * (y - y0)) / c
 
-        # # t_offset[2] = max(min(t_offset[2], max(z0, z1)), min(z0, z1))
+        # t_offset[2] = max(min(t_offset[2], max(z0, z1)), min(z0, z1))
 
-        # lower_bound = min(z0, z1)
-        # upper_bound = max(z0, z1)
+        lower_bound = min(z0, z1)
+        upper_bound = max(z0, z1)
 
-        # if t_offset[2] < lower_bound:
-        #     t_offset[2] = lower_bound
-        # elif t_offset[2] > upper_bound:
-        #     t_offset[2] = upper_bound
+        if t_offset[2] < lower_bound:
+            t_offset[2] = lower_bound
+        elif t_offset[2] > upper_bound:
+            t_offset[2] = upper_bound
         
-        # # t_offset[2] = z0 + (z1-z0) * np.sqrt((t_offset[0]-x0)**2+(t_offset[1]-y0)**2)/np.sqrt((x1-x0)**2+(y1-y0)**2)#stupid but works
-        # T_base2cube = np.eye(4)
-        # T_base2cube[:3, :3] = R_base2board @ const_R
-        # T_base2cube[:3, 3] = t_offset
-        # if i == 0:
-        #     print(t_offset)
-        # print(id0, id1, t_offset)
+        # t_offset[2] = z0 + (z1-z0) * np.sqrt((t_offset[0]-x0)**2+(t_offset[1]-y0)**2)/np.sqrt((x1-x0)**2+(y1-y0)**2)#stupid but works
+        T_base2cube = np.eye(4)
+        T_base2cube[:3, :3] = R_base2board #@ const_R
+        T_base2cube[:3, 3] = t_offset
+        # # if i == 0:
+        #     # print(t_offset)
+        # # print(id0, id1, t_offset)
 
         if abs(T_base2marker0[1,3])<=abs(T_base2marker1[1,3]): #use the one closer to the center of y because of better estimation
             T_marker02cube = np.eye(4)
@@ -359,6 +360,8 @@ def locateCenterOfCubes(pair):
 
             T_base2cube = T_base2marker1 @ T_marker12cube
 
+
+        
 
         cubePosSE3.append(T_base2cube)
     # print(T_base2marker0)
