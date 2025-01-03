@@ -214,6 +214,19 @@ def solveB(robot, camera):
     cubesA, cubesB = cubesList[0], cubesList[1]
     cubesA = redoRot(cubesA, curRot) # because on plain
     cubesB = redoRot(cubesB, curRot)
+
+    img = waitForImg(camera)
+    img = drawFoundCubes(img, camMatrix, distCoeff, cubesA, T_base2cam)
+    
+    if img is None:
+        print("Error: Could not load image.")
+    else:
+        cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
+        cv.resizeWindow("Image Window", 1200, 800)
+        cv.imshow("Image Window", img)
+        cv.waitKey(0)  
+        cv.destroyAllWindows()
+    
     # print("A: ", cubesA)
     # print("B: ", cubesB)
     answer = input(f"Cubes are located on board A: {aruco_pairs[0]['ids']} or B: {aruco_pairs[1]['ids']}").lower()
@@ -749,6 +762,7 @@ def showImg(img):
         cv.destroyAllWindows()
 
 if __name__=="__main__":
+    print(camMatrix, distCoeff)
     # root = os.getcwd()
     # img_dir = os.path.join(root, 'imgs')
     # img_filename = os.path.join(img_dir, f"img3-naklon.png")

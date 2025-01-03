@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 import glob
 import os
+import matplotlib.pyplot as plt
 # import matplotlib.pyplot as plt
 # from basler_camera import BaslerCamera
 
@@ -144,6 +145,9 @@ import os
 #     imgUndist = cv.undistort(img, camMatrix, distCoeff, None, camMatrixNew)
 #     return imgUndist
 
+
+
+
 def calibrate(showPics=True):
     # Read Image
     src = os.path.dirname(os.getcwd()) #gets parent working dir
@@ -183,11 +187,58 @@ def calibrate(showPics=True):
 
     # Calibrate
     repError, camMatrix, distCoeff, rvecs, tvecs = cv.calibrateCamera(worldPtsList, imgPtsList, imgGray.shape[::-1], None, None)
-    camMatrix[0,2] = 1912/2
-    camMatrix[1,2] = 1200/2
+    # camMatrix[0,2] = 1912/2
+    # camMatrix[1,2] = 1200/2
     print('Camera Matrix: \n', camMatrix)
     print('Reproj Error (pixels): {:.4f}'.format(repError))
+    print(distCoeff)
 
+   # After calibration, compute the 3D points for all detected chessboards
+    all_3d_points = []  # List to store 3D points of all chessboards
+    colors = []  # List to store corresponding colors for points
+
+    # Initialize the figure and 3D axis
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Create a colormap
+    colormap = plt.get_cmap("tab20")  # Get a colormap with default size
+
+    for i, worldPts in enumerate(worldPtsList):
+        # Convert rotation vector to a rotation matrix
+        R, _ = cv.Rodrigues(rvecs[i])
+        T = tvecs[i].reshape(3, 1)
+
+        # Apply transformation to worldPts to get camera frame coordinates
+        for pt in worldPts:
+            camera_pt = R @ pt.reshape(3, 1) + T  # Transform to camera frame
+            all_3d_points.append(camera_pt.flatten())
+            colors.append(colormap(i / len(worldPtsList)))  # Normalize index for colormap
+
+    # Convert to numpy arrays for easier plotting
+    all_3d_points = np.array(all_3d_points)
+    colors = np.array(colors)
+
+    # Plot the detected 3D points with colors
+    for i, worldPts in enumerate(worldPtsList):
+        ax.scatter(
+            all_3d_points[i * len(worldPts):(i + 1) * len(worldPts), 0],
+            all_3d_points[i * len(worldPts):(i + 1) * len(worldPts), 1],
+            all_3d_points[i * len(worldPts):(i + 1) * len(worldPts), 2],
+            c=[colormap(i / len(worldPtsList))] * len(worldPts),
+            label=f"Šachovnice {i + 1}",
+            marker="o",
+            s=50,
+        )
+        if i>=4: 
+            break
+
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    ax.set_title("Příklad pěti detekovaných šachovnic a jejich bodů")
+    ax.legend()
+    plt.show()
     # Save Calibration Parameters
     # curFolder = os.path.dirname(os.path.abspath(__file__))
     paramPath = os.path.join(src, 'npz/calibration_ciirc.npz')
@@ -195,6 +246,13 @@ def calibrate(showPics=True):
     np.savez(paramPath, repError=repError, camMatrix=camMatrix, distCoeff=distCoeff, rvecs=rvecs, tvecs=tvecs)
 
     return camMatrix, distCoeff
+
+
+
+
+
+
+
 
 # def loadParams():
 #     curFolder = os.path.dirname(os.path.abspath(__file__))
