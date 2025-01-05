@@ -175,6 +175,9 @@ def redoRot(poseList, rot):
     for i in range(len(poseList)):
         # print("rot to euler pose of cube: ", rotationMatrixToEulerAngles(poseList[i][:3,:3]))
         poseList[i][:3,:3] = rot
+
+        if (rz_cube - rz_home + 180) % 45 < 15:
+            poseList[i][1, 3] -= 0.003
     return poseList
 
 def invert_homogeneous_transform(T):

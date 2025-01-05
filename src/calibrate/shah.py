@@ -123,7 +123,7 @@ def loadRvecsTvecsUi(idx, directory):
             # Accumulate ui data
             if ui_start and line.strip():
                 values = line.strip().split()
-                if len(values) == 2:  # Ensure it has 3 values
+                if len(values) == 2:  # Ensure it has 2 values
                     ui_lines.append([float(v) for v in values])
 
     
@@ -265,7 +265,7 @@ if __name__=="__main__":
 
     print("T_base2camera: \n", T_base2camera)
 
-    ui = np.array([point.flatten() for point in ui_list])  # List of 2D points
+    ui = np.array([point.flatten() for point in ui_list])  # List of 2D points[]
 
     initial_guess_flat = matToParam(T_gripper2target, T_base2camera)
 
