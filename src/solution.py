@@ -125,13 +125,23 @@ def avgAllMeasurements(multiple_measurements):
 
     return average_poses
 
-def locateAllCubes(camera):
+def locateAllCubes(camera, homeRot=None):
     multiple_measurements = []
     for i in range(10):
         img = waitForImg(camera)
         img, allT_base2marker, ids = arucoMarkersFinder(img, camMatrix, distCoeff, 0.036)
         multiple_measurements.append(allT_base2marker)
     allT_base2marker_avg = avgAllMeasurements(multiple_measurements) # NOT USING NOW
+
+    if homeRot is not None:
+        for pose in allT_base2marker:
+            euler_home = rotationMatrixToEulerAngles(homeRot)
+            rz_home = euler_home[2]
+            euler_marker = rotationMatrixToEulerAngles(pose[:3,:3])
+            rz_marker = euler_marker[2]
+            rot = Rz(np.radians(rz_marker-rz_home)) @ homeRot
+            pose[:3,:3] = rot
+
 
     cubesList = []
     if len(ids)>0:
@@ -218,15 +228,15 @@ def solveB(robot, camera):
     moveBase(robot, 90)
     while True:
         img = waitForImg(camera)
-        filename = "test_at_home.jpg"
-        success = cv.imwrite(filename, img)
+        # filename = "test_at_home.jpg"
+        # success = cv.imwrite(filename, img)
 
-        if success:
-            print(f"Image successfully saved as {filename}")
-        else:
-            print("Failed to save the image")
+        # if success:
+        #     print(f"Image successfully saved as {filename}")
+        # else:
+        #     print("Failed to save the image")
 
-        cubesList, aruco_pairs = locateAllCubes(camera)
+        cubesList, aruco_pairs = locateAllCubes(camera, curRot)
         user_input = input("Enter 'ok' to stop or press Enter to continue: ").strip().lower()
         if user_input == "ok":
             print("Exiting loop.")
