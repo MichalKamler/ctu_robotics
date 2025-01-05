@@ -133,14 +133,14 @@ def locateAllCubes(camera, homeRot=None):
         multiple_measurements.append(allT_base2marker)
     allT_base2marker_avg = avgAllMeasurements(multiple_measurements) # NOT USING NOW
 
-    if homeRot is not None:
-        for pose in allT_base2marker:
-            euler_home = rotationMatrixToEulerAngles(homeRot)
-            rz_home = euler_home[2]
-            euler_marker = rotationMatrixToEulerAngles(pose[:3,:3])
-            rz_marker = euler_marker[2]
-            rot = Rz(np.radians(rz_marker-rz_home)) @ homeRot
-            pose[:3,:3] = rot
+    # if homeRot is not None:
+    #     for pose in allT_base2marker:
+    #         euler_home = rotationMatrixToEulerAngles(homeRot)
+    #         rz_home = euler_home[2]
+    #         euler_marker = rotationMatrixToEulerAngles(pose[:3,:3])
+    #         rz_marker = euler_marker[2]
+    #         rot = Rz(np.radians(rz_marker-rz_home)) @ homeRot
+    #         pose[:3,:3] = rot
 
 
     cubesList = []
@@ -168,6 +168,8 @@ def redoRot(poseList, rot):
     rz_home = euler_home[2]
     euler_cube = rotationMatrixToEulerAngles(poseList[0][:3,:3])
     rz_cube = euler_cube[2]
+    print(rz_home, rz_cube)
+    rz_cube = (rz_cube % 90) + 90
     rot = Rz(np.radians(rz_cube-rz_home)) @ rot
 
     for i in range(len(poseList)):
@@ -236,7 +238,7 @@ def solveB(robot, camera):
         # else:
         #     print("Failed to save the image")
 
-        cubesList, aruco_pairs = locateAllCubes(camera, curRot)
+        cubesList, aruco_pairs = locateAllCubes(camera)
         user_input = input("Enter 'ok' to stop or press Enter to continue: ").strip().lower()
         if user_input == "ok":
             print("Exiting loop.")
@@ -246,8 +248,8 @@ def solveB(robot, camera):
     moveBase(robot, -90)
     
     cubesA, cubesB = cubesList[0], cubesList[1]
-    cubesA = redoRot(cubesA, curRot) # because on plain
-    cubesB = redoRot(cubesB, curRot)
+    # cubesA = redoRot(cubesA, curRot) # because on plain
+    # cubesB = redoRot(cubesB, curRot)
 
     print(cubesA)
     print()
@@ -256,14 +258,14 @@ def solveB(robot, camera):
     img = waitForImg(camera)
     img = drawFoundCubes(img, camMatrix, distCoeff, cubesA, T_base2cam)
     
-    # if img is None:
-    #     print("Error: Could not load image.")
-    # else:
-    #     cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
-    #     cv.resizeWindow("Image Window", 1200, 800)
-    #     cv.imshow("Image Window", img)
-    #     cv.waitKey(0)  
-    #     cv.destroyAllWindows()
+    if img is None:
+        print("Error: Could not load image.")
+    else:
+        cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
+        cv.resizeWindow("Image Window", 1200, 800)
+        cv.imshow("Image Window", img)
+        cv.waitKey(0)  
+        cv.destroyAllWindows()
     
     # print("A: ", cubesA)
     # print("B: ", cubesB)

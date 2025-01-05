@@ -359,6 +359,12 @@ def locateCenterOfCubes(pair):
 
             T_base2cube = T_base2marker1 @ T_marker12cube
 
+        R_base2board = T_base2marker0[:3,:3]
+
+        # R_base2cube = T_base2cube[:3,:3]
+        # R_base2cube = Rx(np.pi) @ R_base2cube
+        # T_base2cube[:3,:3] = R_base2cube
+        T_base2cube[:3,:3] = Ry(-np.pi/2) @ R_base2board
 
         cubePosSE3.append(T_base2cube)
     # print(T_base2marker0)
