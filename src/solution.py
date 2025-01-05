@@ -169,7 +169,7 @@ def redoRot(poseList, rot):
     euler_cube = rotationMatrixToEulerAngles(poseList[0][:3,:3])
     rz_cube = euler_cube[2]
     print(rz_home, rz_cube)
-    rz_cube = (rz_cube % 90) + 90
+    # rz_cube = (rz_cube % 90) + 90
     rot = Rz(np.radians(rz_cube-rz_home)) @ rot
 
     for i in range(len(poseList)):
@@ -248,24 +248,29 @@ def solveB(robot, camera):
     moveBase(robot, -90)
     
     cubesA, cubesB = cubesList[0], cubesList[1]
-    # cubesA = redoRot(cubesA, curRot) # because on plain
-    # cubesB = redoRot(cubesB, curRot)
+    cubesA = redoRot(cubesA, curRot) # because on plain
+    cubesB = redoRot(cubesB, curRot)
 
-    print(cubesA)
-    print()
-    print(cubesB)
+    # print(cubesA)
+    # print()
+    # print(cubesB)
 
-    img = waitForImg(camera)
-    img = drawFoundCubes(img, camMatrix, distCoeff, cubesA, T_base2cam)
+    # img = waitForImg(camera)
+    # moveGripperXYZ(robot, 0.1, 0.,0.)
+    # q0 = robot.get_q()
+    # gripper_show = robot.fk(q0)
+    # gripper_show_list = []
+    # gripper_show_list.append(gripper_show)
+    # img = drawFoundCubes(img, camMatrix, distCoeff, gripper_show_list, T_base2cam)
     
-    if img is None:
-        print("Error: Could not load image.")
-    else:
-        cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
-        cv.resizeWindow("Image Window", 1200, 800)
-        cv.imshow("Image Window", img)
-        cv.waitKey(0)  
-        cv.destroyAllWindows()
+    # if img is None:
+    #     print("Error: Could not load image.")
+    # else:
+    #     cv.namedWindow("Image Window", cv.WINDOW_NORMAL)
+    #     cv.resizeWindow("Image Window", 1200, 800)
+    #     cv.imshow("Image Window", img)
+    #     cv.waitKey(0)  
+    #     cv.destroyAllWindows()
     
     # print("A: ", cubesA)
     # print("B: ", cubesB)
@@ -450,10 +455,13 @@ def moveCubesToHoles(robot, cubesPoses, holesPoses):
     homePose = robot.fk(q)
 
     avgz_cubes = max(sum(mat[2, 3] for mat in cubesPoses)/len(cubesPoses) + 0.055, 0.065)
-    avgz_holes = max(sum(mat[2, 3] for mat in holesPoses)/len(holesPoses) + 0.06, 0.06)
+    avgz_holes = max(sum(mat[2, 3] for mat in holesPoses)/len(holesPoses) + 0.075, 0.08)
     print("avgz: ", avgz_cubes, avgz_holes)
 
-    for i, (cubePose, holePose) in enumerate(zip(cubesPoses, holesPoses)):
+    cubesPoses_sorted = sorted(cubesPoses, key=lambda x: x[0, 3])
+    holesPoses_sorted = sorted(holesPoses, key=lambda x: x[0, 3])
+
+    for i, (cubePose, holePose) in enumerate(zip(cubesPoses_sorted, holesPoses_sorted)):
         gripperOpen(robot)
         cubePose[2,3] = avgz_cubes  #TEST
         print("x cube pose: ", cubePose[0, 3]*100, " cm", ", y cube pose: ", cubePose[1,3]*100, " cm")
@@ -542,7 +550,7 @@ def validIkForCubesOrHoles(robot, pose):
     valid_q_sol = []
     for i in range(4):
         R_pose = pose[:3,:3]
-        R_pose = Rz @ R_pose
+        R_pose = R_pose @ Rz
         pose[:3,:3] = R_pose
         # print(R_pose)
         possible_q_config = robot.ik(pose)

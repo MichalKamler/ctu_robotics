@@ -346,25 +346,51 @@ def locateCenterOfCubes(pair):
         #     print(t_offset)
         # print(id0, id1, t_offset)
 
+        
+
         if abs(T_base2marker0[1,3])<=abs(T_base2marker1[1,3]): #use the one closer to the center of y because of better estimation
+            print("____________", id0)
             T_marker02cube = np.eye(4)
             T_marker02cube[1,3] = data[i][0]/1000 #x on board
             T_marker02cube[2,3] = data[i][1]/1000 #y on board
 
             T_base2cube = T_base2marker0 @ T_marker02cube
+
+            T_base2cube[:3,:3] = T_base2marker0[:3,:3] @ Ry(np.radians(90))
         else:
+            print("____________", id1)
             T_marker12cube = np.eye(4)
             T_marker12cube[1,3] = data[i][0]/1000 - 0.18 #x on board
             T_marker12cube[2,3] = data[i][1]/1000 - 0.14 #y on board
 
             T_base2cube = T_base2marker1 @ T_marker12cube
 
-        R_base2board = T_base2marker0[:3,:3]
+            T_base2cube[:3,:3] = T_base2marker1[:3,:3] @ Ry(np.radians(-90))
+
+        # R_base2board = T_base2marker0[:3,:3]
 
         # R_base2cube = T_base2cube[:3,:3]
         # R_base2cube = Rx(np.pi) @ R_base2cube
         # T_base2cube[:3,:3] = R_base2cube
-        T_base2cube[:3,:3] = Ry(-np.pi/2) @ R_base2board
+        # T_base2cube[:3,:3] = Ry(-np.pi/2) @ R_base2board
+
+        lower_bound = min(z0, z1)
+        upper_bound = max(z0, z1)
+
+        if T_base2cube[2,3] < lower_bound:
+            T_base2cube[2,3] = lower_bound
+        elif T_base2cube[2,3] > upper_bound:
+           T_base2cube[2,3] = upper_bound
+
+        
+        if T_base2cube[0,3]<0:
+            x = T_base2cube[0,3]
+            T_base2cube[0,3] = x + ((11/120)*x - 280/6000)
+        
+        if T_base2cube[1,3]>0.15:
+            T_base2cube[1,3] += -0.007
+
+        # T_base2cube[1,3] += 0.007
 
         cubePosSE3.append(T_base2cube)
     # print(T_base2marker0)
